@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>命取り — デモンストレーション</title>
+<style>
+:root{
+  --bg-deep:#0b2422;
+  --bg-water:#123a35;
+  --pond:#1a4a42;
+  --lily:#4f8a5b;
+  --lily-light:#7ab26c;
+  --egg:#e8c468;
+  --egg-dark:#c9a24c;
+  --ink:#eaf3ee;
+  --ink-dim:#a9c4bb;
+  --p1:#4fa3e3;
+  --p1-dim:#2c5f7d;
+  --p2:#e36b5c;
+  --p2-dim:#7d3c34;
+  --danger:#e36b5c;
+  --shield:#e8c468;
+  --line: rgba(234,243,238,0.12);
+  --display: 'Yuji Syuku', serif;
+  --body: 'Zen Maru Gothic', sans-serif;
+}
+@font-face{ font-family:'Yuji Syuku'; src:local('Yuji Syuku'); }
+* { box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg-deep); color:var(--ink); font-family:var(--body); }
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--bg-water), var(--bg-deep) 70%);
+  padding:28px 16px 60px;
+}
+.wrap{ max-width:980px; margin:0 auto; }
+
+/* ---- Header ---- */
+.hero{
+  text-align:center;
+  margin-bottom:28px;
+  position:relative;
+}
+.hero .kanji{
+  font-family: var(--display);
+  font-size: clamp(40px, 9vw, 72px);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  margin:0;
+  text-shadow: 0 0 24px rgba(122,178,108,0.35);
+}
+.hero .sub{
+  color: var(--ink-dim);
+  font-size:14px;
+  letter-spacing:0.08em;
+  margin-top:6px;
+}
+.hero .ripple{
+  width:120px; height:6px; margin:14px auto 0;
+  border-radius:50%;
+  background: radial-gradient(ellipse at center, var(--lily-light), transparent 70%);
+  opacity:0.6;
+}
+
+/* ---- Difficulty bar ---- */
+.diffbar{
+  display:flex; align-items:center; gap:10px;
+  justify-content:center;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.diffbar-label{ font-size:12px; color:var(--ink-dim); letter-spacing:0.1em; }
+.diffbtn{
+  background: rgba(234,243,238,0.06);
+  border:1px solid var(--line);
+  color:var(--ink-dim);
+  padding:7px 16px;
+  border-radius:999px;
+  font-size:13px;
+  font-family:var(--body);
+  cursor:pointer;
+  transition: all .15s ease;
+}
+.diffbtn:hover{ border-color: var(--lily-light); color:var(--ink); }
+.diffbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+
+/* ---- AI reasoning note (collapsible "cheat" panel) ---- */
+.ainote{
+  background: rgba(122,178,108,0.08);
+  border:1px solid rgba(122,178,108,0.3);
+  border-radius:12px;
+  padding:10px 16px;
+  font-size:13px;
+  color:var(--ink);
+  margin-bottom:18px;
+  line-height:1.6;
+}
+.ainote summary{
+  cursor:pointer;
+  color: var(--lily-light);
+  font-weight:700;
+  list-style:none;
+}
+.ainote summary::-webkit-details-marker{ display:none; }
+.ainote summary::before{ content:'▶ '; font-size:11px; }
+.ainote[open] summary::before{ content:'▼ '; }
+.ainote-body{ margin-top:8px; color:var(--ink-dim); }
+
+/* ---- Rules note ---- */
+.notebox{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px 18px;
+  font-size:13px;
+  line-height:1.8;
+  color:var(--ink-dim);
+  margin-bottom:26px;
+}
+.notebox b{ color:var(--ink); }
+.notebox summary{ cursor:pointer; color:var(--ink); font-weight:700; margin-bottom:6px; }
+
+/* ---- Boards ---- */
+.boards{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-bottom:22px;
+}
+@media (max-width:680px){ .boards{ grid-template-columns:1fr; } }
+
+.board{
+  border-radius:18px;
+  padding:16px;
+  border:1px solid var(--line);
+  position:relative;
+  overflow:hidden;
+}
+.board.p1{ background: linear-gradient(160deg, rgba(79,163,227,0.14), rgba(18,58,53,0.4)); border-color: rgba(79,163,227,0.35); }
+.board.p2{ background: linear-gradient(160deg, rgba(227,107,92,0.14), rgba(18,58,53,0.4)); border-color: rgba(227,107,92,0.35); }
+.board.active{ box-shadow: 0 0 0 2px var(--lily-light), 0 0 24px rgba(122,178,108,0.25); }
+
+.board h2{
+  font-family:var(--display);
+  font-size:20px;
+  margin:0 0 4px;
+  display:flex; align-items:center; gap:8px;
+}
+.board .status{ font-size:12px; color:var(--ink-dim); margin-bottom:12px; }
+
+.units{ display:flex; gap:10px; }
+.unit{
+  flex:1;
+  background: rgba(11,36,34,0.55);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 6px;
+  text-align:center;
+  min-height:120px;
+  display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+  transition: transform .15s ease, opacity .3s ease;
+}
+.unit.dead{ opacity:0.28; filter:grayscale(1); }
+.unit .label{ font-size:11px; color:var(--ink-dim); letter-spacing:0.1em; }
+.unit .glyph{ font-size:34px; line-height:1; margin:6px 0; }
+.unit .flags{ display:flex; gap:3px; flex-wrap:wrap; justify-content:center; min-height:18px; }
+.flag{
+  font-size:10px; padding:1px 5px; border-radius:20px;
+  background: rgba(234,243,238,0.08); color:var(--ink-dim); border:1px solid var(--line);
+}
+.flag.on{ background: rgba(122,178,108,0.25); color:var(--lily-light); border-color: rgba(122,178,108,0.4); }
+.flag.shield{ background: rgba(232,196,104,0.2); color:var(--egg); border-color: rgba(232,196,104,0.4); }
+.flag.hidden{ background: rgba(79,163,227,0.2); color:var(--p1); border-color: rgba(79,163,227,0.4); }
+.flag.frog{ background: rgba(122,178,108,0.35); color:var(--ink); border-color: var(--lily-light); }
+
+/* ---- Controls ---- */
+.controls{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.controls h3{
+  font-family: var(--display);
+  margin:0 0 4px;
+  font-size:18px;
+}
+.controls .hint{ font-size:12px; color:var(--ink-dim); margin-bottom:14px; }
+
+.unit-control{
+  border-top:1px solid var(--line);
+  padding:12px 0;
+}
+.unit-control:first-of-type{ border-top:none; padding-top:0; }
+.unit-control .title{
+  font-size:13px; color:var(--ink-dim); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+}
+.unit-control .title .g{ font-size:18px; }
+
+.btnrow{ display:flex; flex-wrap:wrap; gap:8px; }
+.actbtn{
+  background: rgba(234,243,238,0.06);
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:13px;
+  font-family:var(--body);
+  cursor:pointer;
+  transition: all .15s ease;
+}
+.actbtn:hover{ background: rgba(122,178,108,0.18); border-color:var(--lily-light); }
+.actbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+.actbtn:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.target-select{
+  margin-top:8px;
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+.target-chip{
+  font-size:12px; padding:6px 10px; border-radius:8px;
+  border:1px solid var(--line); background:rgba(227,107,92,0.12); color:var(--ink);
+  cursor:pointer;
+}
+.target-chip.sel{ background:var(--danger); color:#fff; border-color:var(--danger); }
+
+.confirm-row{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
+.confirmbtn{
+  background: var(--lily); color:#0b2422; border:none; font-weight:700;
+  padding:10px 22px; border-radius:10px; font-size:14px; cursor:pointer; font-family:var(--body);
+}
+.confirmbtn:disabled{ background: rgba(234,243,238,0.1); color:var(--ink-dim); cursor:not-allowed; }
+
+/* ---- Log ---- */
+.log{
+  background: rgba(11,36,34,0.6);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px 18px;
+  font-size:13px;
+  max-height:220px;
+  overflow-y:auto;
+  color:var(--ink-dim);
+}
+.log h3{ font-family:var(--display); font-size:15px; color:var(--ink); margin:0 0 8px; }
+.log .entry{ margin-bottom:4px; }
+.log .turn-mark{ color:var(--lily-light); font-weight:700; margin-top:8px; display:block; }
+
+/* ---- Overlay for game over ---- */
+.gameover{
+  text-align:center; padding:30px; border-radius:18px;
+  background: linear-gradient(160deg, rgba(122,178,108,0.2), rgba(11,36,34,0.6));
+  border:1px solid var(--lily-light);
+  margin-bottom:18px;
+}
+.gameover .win{ font-family:var(--display); font-size:30px; margin-bottom:10px; }
+.resetbtn{
+  background:transparent; border:1px solid var(--lily-light); color:var(--ink);
+  padding:10px 24px; border-radius:10px; cursor:pointer; font-family:var(--body); font-size:14px;
+}
+.resetbtn:hover{ background: rgba(122,178,108,0.15); }
+
+.veil{
+  position:absolute; inset:0; backdrop-filter: blur(6px);
+  background: rgba(11,36,34,0.55);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; color:var(--ink-dim); text-align:center; padding:20px;
+  border-radius:18px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kanji">命取り</p>
+    <div class="sub">EGG · TADPOLE · FROG — NPC対戦・同時進行の生存ゲーム</div>
+    <div class="ripple"></div>
+  </div>
+
+  <details class="notebox">
+    <summary>このデモでのルール解釈（要確認）</summary>
+    <div>
+      ・1ターンにつき、A〜Cのうち<b>1体だけ</b>を選んで行動させます（3体まとめて行動はできません）。あなたが行動を決定すると、その内容は隠されたままNPCも同時に行動を選び、両者の行動が同時に公開・処理されます。<br>
+      ・卵：<b>孵化する／そのまま</b>。<br>
+      ・オタマジャクシ：<b>前足／後足／尻尾切り</b>のうち未実施のものを選択。<b>足の有無に関わらず</b>、代わりに<b>隠れる</b>も選べます。<br>
+      ・尻尾を切った個体は<b>一度だけ</b>捕食を無効化する盾を得ます（消費後は普通に狙われます）。<br>
+      ・3つ全て完了するとカエルになります（進化したそのターンは行動不可＝自然と食べる／隠れるは使えません）。<br>
+      ・カエル：相手の個体（卵／オタマジャクシ／カエル）を1体食べる、隠れる、または<b>自分の欠けたスロット(食べられて空いた個体)に卵を1つ産む</b>。産卵は1回使うと次のターンは使えず、その次のターンからまた使えます（2ターンに1回のペース）。<br>
+      ・隠れるはそのターンのみ有効。<br>
+      ・<b>カエル同士が同じターンに互いを食べようとした場合</b>：1回目は不発（共倒れなし）、2回目は両者とも死亡します（以降は奇数回目＝不発／偶数回目＝両者死亡、を繰り返します）。<br>
+      ・食べる行動は<b>2ターンに1回まで</b>（使うと次のターンは使えず、その次からまた使えます）。<br>
+      ・自分の個体が<b>最後の1体だけ</b>になった状態で、その個体が<b>2ターン連続で隠れた</b>場合、その時点で相手の勝利となります（隠れ続けての引き延ばしを防止）。<br>
+      ・勝利条件：自分の個体を<b>3体ともカエル</b>にする、または相手の個体を<b>3体とも捕食し全滅</b>させる。
+    </div>
+  </details>
+
+  <div id="app"></div>
+
+</div>
+
+<script>
+const STAGE_EGG = 'egg', STAGE_TAD = 'tadpole', STAGE_FROG = 'frog';
+
+function newUnit(id){
+  return { id, stage: STAGE_EGG, front:false, back:false, tailCut:false,
+           shield:false, shieldUsed:false, hidden:false, alive:true, layCooldown:0, eatCooldown:0 };
+}
+
+function newGame(){
+  return {
+    turn: 1,
+    phase: 'p1select', // p1select -> aithinking -> gameover
+    players: {
+      1: { name:'あなた', units:[newUnit('A'), newUnit('B'), newUnit('C')], lastStandHideStreak:0 },
+      2: { name:'NPC', units:[newUnit('A'), newUnit('B'), newUnit('C')], lastStandHideStreak:0 },
+    },
+    pending: { 1:null, 2:null },
+    mutualClashCount: 0,
+    lastAIMove: null,
+    log: [],
+    winner: null
+  };
+}
+
+let game = newGame();
+let difficulty = 'normal'; // 'easy' | 'normal' | 'hard'
+
+function setDifficulty(d){
+  difficulty = d;
+  render();
+}
+
+function otherPlayer(p){ return p===1?2:1; }
+
+function unitGlyph(u){
+  if(!u.alive) return '💀';
+  if(u.stage===STAGE_EGG) return '🥚';
+  if(u.stage===STAGE_TAD) return '🐟';
+  return '🐸';
+}
+
+function stageLabel(u){
+  if(!u.alive) return '食べられた';
+  if(u.stage===STAGE_EGG) return '卵';
+  if(u.stage===STAGE_TAD) return 'オタマジャクシ';
+  return 'カエル';
+}
+
+function availableActions(playerNum, unit, ownUnits, oppUnits){
+  if(!unit.alive) return [];
+  if(unit.stage===STAGE_EGG){
+    return [ {type:'hatch', label:'孵化する'}, {type:'stay', label:'そのまま'} ];
+  }
+  if(unit.stage===STAGE_TAD){
+    const acts = [];
+    if(!unit.front) acts.push({type:'front', label:'前足を生やす'});
+    if(!unit.back) acts.push({type:'back', label:'後足を生やす'});
+    if(!unit.tailCut) acts.push({type:'tail', label:'尻尾を切る'});
+    acts.push({type:'hide', label:'隠れる'});
+    return acts;
+  }
+  // frog
+  const acts = [ {type:'hide', label:'隠れる'} ];
+  const targets = oppUnits.filter(u=>u.alive);
+  if(targets.length>0 && unit.eatCooldown===0) acts.push({type:'eat', label:'食べる', needsTarget:true});
+  const emptySlots = ownUnits.filter(u=>!u.alive);
+  if(emptySlots.length>0 && unit.layCooldown===0) acts.push({type:'lay', label:'卵を産む', needsTarget:true});
+  return acts;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const p1 = game.players[1], p2 = game.players[2];
+
+  let html = '';
+
+  html += `<div class="diffbar">
+    <span class="diffbar-label">難易度</span>
+    ${['easy','normal','hard'].map(d=>{
+      const labels = {easy:'イージー', normal:'ノーマル', hard:'ハード'};
+      return `<button class="diffbtn ${difficulty===d?'sel':''}" onclick="setDifficulty('${d}')">${labels[d]}</button>`;
+    }).join('')}
+  </div>`;
+
+  if(game.phase==='gameover'){
+    html += `<div class="gameover">
+      <div class="win">🏆 ${game.winner==='draw' ? '引き分け' : (game.players[game.winner].name + ' の勝利！')}</div>
+      <button class="resetbtn" onclick="resetGame()">もう一度遊ぶ</button>
+    </div>`;
+  }
+
+  html += `<div class="boards">
+    ${renderBoard(1, p1, p2, false)}
+    ${renderBoard(2, p2, p1, true)}
+  </div>`;
+
+  if(game.lastAIMove){
+    html += `<details class="ainote">
+      <summary>🧠 NPCの判断を見る（カンニング）</summary>
+      <div class="ainote-body">${game.lastAIMove.reason}</div>
+    </details>`;
+  }
+
+  if(game.phase!=='gameover'){
+    html += renderControls();
+  }
+
+  html += `<div class="log"><h3>ログ</h3>${game.log.length? game.log.map(l=> l.turnMark? `<span class="turn-mark">${l.text}</span>` : `<div class="entry">${l.text}</div>`).join('') : '<div class="entry">まだ何も起きていません。</div>'}</div>`;
+
+  app.innerHTML = html;
+}
+
+function renderBoard(num, p, opp, isP2side){
+  const activeSelecting = (game.phase==='p1select' && num===1);
+  return `<div class="board p${num} ${activeSelecting?'active':''}">
+    <h2>${num===1?'🔵':'🟢'} ${p.name}</h2>
+    <div class="status">生存: ${p.units.filter(u=>u.alive).length}/3　カエル: ${p.units.filter(u=>u.stage===STAGE_FROG && u.alive).length}/3</div>
+    <div class="units">
+      ${p.units.map(u=>renderUnit(u)).join('')}
+    </div>
+  </div>`;
+}
+
+function renderUnit(u){
+  const flags = [];
+  if(u.stage!==STAGE_EGG){
+    flags.push(`<span class="flag ${u.front?'on':''}">前足</span>`);
+    flags.push(`<span class="flag ${u.back?'on':''}">後足</span>`);
+    flags.push(`<span class="flag ${u.tailCut?'on':''}">尻尾</span>`);
+  }
+  if(u.shield && !u.shieldUsed) flags.push(`<span class="flag shield">盾</span>`);
+  if(u.hidden) flags.push(`<span class="flag hidden">隠</span>`);
+  if(u.stage===STAGE_FROG) flags.push(`<span class="flag frog">完成</span>`);
+  if(u.stage===STAGE_FROG && u.layCooldown>0) flags.push(`<span class="flag">産卵休み</span>`);
+  if(u.stage===STAGE_FROG && u.eatCooldown>0) flags.push(`<span class="flag">捕食休み</span>`);
+  return `<div class="unit ${!u.alive?'dead':''}">
+    <div class="label">個体 ${u.id}</div>
+    <div class="glyph">${unitGlyph(u)}</div>
+    <div class="flags">${flags.join('')}</div>
+    <div class="label">${stageLabel(u)}</div>
+  </div>`;
+}
+
+function renderControls(){
+  if(game.phase==='aithinking'){
+    return `<div class="controls">
+      <h3>🟢 NPC の行動選択（ターン${game.turn}）</h3>
+      <div class="hint">NPCが考え中...</div>
+    </div>`;
+  }
+
+  const current = 1;
+  const p = game.players[current];
+  const opp = game.players[otherPlayer(current)];
+  const pending = game.pending[current];
+
+  const allChosen = !!pending && ((pending.type!=='eat' && pending.type!=='lay') || !!pending.target);
+
+  let unitsHtml = p.units.map(u=>{
+    if(!u.alive){ return `<div class="unit-control"><div class="title"><span class="g">💀</span>個体 ${u.id}：行動不可</div></div>`; }
+    const acts = availableActions(current, u, p.units, opp.units);
+    const chosen = (pending && pending.unitId===u.id) ? pending : null;
+
+    let btns = acts.map(a=>{
+      const sel = chosen && chosen.type===a.type ? 'sel' : '';
+      return `<button class="actbtn ${sel}" onclick="chooseAction(${current},'${u.id}','${a.type}')">${a.label}</button>`;
+    }).join('');
+
+    let targetHtml = '';
+    if(chosen && chosen.type==='eat'){
+      const targets = opp.units.filter(t=>t.alive);
+      targetHtml = `<div class="target-select">${targets.map(t=>{
+        const sel = chosen.target===t.id ? 'sel':'';
+        return `<span class="target-chip ${sel}" onclick="chooseTarget(${current},'${u.id}','${t.id}')">NPC ${t.id}（${stageLabel(t)}）</span>`;
+      }).join('')}</div>`;
+    }
+    if(chosen && chosen.type==='lay'){
+      const slots = p.units.filter(t=>!t.alive);
+      targetHtml = `<div class="target-select">${slots.map(t=>{
+        const sel = chosen.target===t.id ? 'sel':'';
+        return `<span class="target-chip ${sel}" onclick="chooseTarget(${current},'${u.id}','${t.id}')" style="background:rgba(232,196,104,0.18); border-color:rgba(232,196,104,0.4);">自分の空き ${t.id} に産む</span>`;
+      }).join('')}</div>`;
+    }
+
+    return `<div class="unit-control">
+      <div class="title"><span class="g">${unitGlyph(u)}</span>個体 ${u.id}（${stageLabel(u)}）</div>
+      <div class="btnrow">${btns}</div>
+      ${targetHtml}
+    </div>`;
+  }).join('');
+
+  return `<div class="controls">
+    <h3>🔵 ${p.name} の行動選択（ターン${game.turn}）</h3>
+    <div class="hint">このターンはA〜Cのうち<b>1体だけ</b>行動できます。行動させたい個体のボタンを1つ選んで「決定」を押してください。</div>
+    ${unitsHtml}
+    <div class="confirm-row">
+      <button class="confirmbtn" ${allChosen?'':'disabled'} onclick="confirmPlayer()">決定</button>
+    </div>
+  </div>`;
+}
+
+function chooseAction(playerNum, unitId, type){
+  game.pending[playerNum] = { unitId, type };
+  render();
+}
+function chooseTarget(playerNum, unitId, targetId){
+  if(game.pending[playerNum] && game.pending[playerNum].unitId===unitId){
+    game.pending[playerNum].target = targetId;
+  }
+  render();
+}
+
+function confirmPlayer(){
+  game.phase = 'aithinking';
+  render();
+  setTimeout(()=>{
+    game.pending[2] = pickAIAction();
+    game.lastAIMove = game.pending[2] ? { reason: game.pending[2].reason } : null;
+    resolveTurn();
+    game.phase = checkWin() ? 'gameover' : 'p1select';
+    if(game.phase==='p1select'){
+      game.turn++;
+      game.pending = {1:null, 2:null};
+      [1,2].forEach(pn=> game.players[pn].units.forEach(u=>{
+        if(u.layCooldown>0) u.layCooldown--;
+        if(u.eatCooldown>0) u.eatCooldown--;
+      }));
+    }
+    render();
+  }, 700);
+}
+
+// --- simple NPC AI ---
+function pickAIAction(){
+  const ai = game.players[2];
+  const opp = game.players[1];
+  const aliveUnits = ai.units.filter(u=>u.alive);
+  let candidates = [];
+
+  aliveUnits.forEach(u=>{
+    const acts = availableActions(2, u, ai.units, opp.units);
+    acts.forEach(a=>{
+      if(a.type==='eat'){
+        opp.units.filter(t=>t.alive).forEach(t=>{
+          let score, reason;
+          if(t.stage===STAGE_FROG){
+            score = 100;
+            reason = `個体${u.id}で相手のカエル${t.id}を捕食し、3匹カエル達成を阻止しようとした。`;
+          } else if(t.stage===STAGE_TAD){
+            score = 40 + (t.front?15:0) + (t.back?15:0) + (t.tailCut?10:0);
+            reason = `個体${u.id}で、進化が進んでいる相手のオタマジャクシ${t.id}を早めに仕留めようとした。`;
+          } else {
+            score = 20;
+            reason = `個体${u.id}で相手の卵${t.id}を刈り取り、数的優位を取ろうとした。`;
+          }
+          if(t.shield && !t.shieldUsed){
+            score -= 25;
+            reason += '（尻尾切りの盾で防がれるリスクはあるが賭けてみた）';
+          }
+          candidates.push({unitId:u.id, type:'eat', target:t.id, score, reason});
+        });
+      } else if(a.type==='lay'){
+        const slot = ai.units.find(x=>!x.alive);
+        candidates.push({unitId:u.id, type:'lay', target: slot ? slot.id : null, score:25,
+          reason:`個体${u.id}が空いたスロット${slot?slot.id:''}に卵を産み、数の不利を取り戻そうとした。`});
+      } else if(a.type==='hide'){
+        let score = 5;
+        const doneCount = u.stage===STAGE_TAD ? (u.front?1:0)+(u.back?1:0)+(u.tailCut?1:0) : 0;
+        if(u.stage===STAGE_TAD) score = 5 + doneCount*8;
+        let reason;
+        if(doneCount>=2) reason = `個体${u.id}は完成間近なので、捕食から守るために隠れようとした。`;
+        else if(u.stage===STAGE_FROG) reason = `個体${u.id}（カエル）は様子を見るために隠れようとした。`;
+        else reason = `個体${u.id}が念のため隠れようとした。`;
+        candidates.push({unitId:u.id, type:'hide', score, reason});
+      } else if(a.type==='hatch'){
+        candidates.push({unitId:u.id, type:'hatch', score:18, reason:`個体${u.id}の卵を孵化させ、成長を進めようとした。`});
+      } else if(a.type==='stay'){
+        candidates.push({unitId:u.id, type:'stay', score:1, reason:`個体${u.id}はそのまま様子を見た。`});
+      } else if(a.type==='front'){
+        candidates.push({unitId:u.id, type:'front', score:22, reason:`個体${u.id}の前足を生やし、カエルに近づけようとした。`});
+      } else if(a.type==='back'){
+        candidates.push({unitId:u.id, type:'back', score:22, reason:`個体${u.id}の後足を生やし、カエルに近づけようとした。`});
+      } else if(a.type==='tail'){
+        candidates.push({unitId:u.id, type:'tail', score:26, reason:`個体${u.id}の尻尾を切り、捕食耐性の盾を得ようとした。`});
+      }
+    });
+  });
+
+  if(candidates.length===0) return null;
+  candidates.sort((a,b)=> b.score - a.score);
+
+  let chosen;
+  if(difficulty==='hard'){
+    chosen = candidates[0];
+  } else if(difficulty==='normal'){
+    const top = candidates.slice(0, Math.min(3, candidates.length));
+    chosen = top[Math.floor(Math.random()*top.length)];
+  } else { // easy: mostly ignores scoring, picks near-randomly
+    chosen = candidates[Math.floor(Math.random()*candidates.length)];
+    chosen = { ...chosen, reason: chosen.reason + '（あまり深く考えず、ほぼランダムに選んだ）' };
+  }
+  return chosen;
+}
+
+function log(text, turnMark){
+  game.log.push({text, turnMark: !!turnMark});
+}
+
+function resolveTurn(){
+  log(`── ターン ${game.turn} 結果 ──`, true);
+
+  // reset hidden flags from previous turn
+  [1,2].forEach(pn=> game.players[pn].units.forEach(u=> u.hidden=false));
+
+  // Phase 1: growth / hatch / hide actions (only the one unit each player chose acts)
+  [1,2].forEach(pn=>{
+    const p = game.players[pn];
+    const chosenPending = game.pending[pn];
+    p.units.forEach(u=>{
+      if(!u.alive) return;
+      if(!chosenPending || chosenPending.unitId!==u.id) return;
+      const act = chosenPending;
+      if(act.type==='hatch'){
+        u.stage = STAGE_TAD;
+        log(`${p.name}の個体${u.id}：卵からオタマジャクシに孵化した。`);
+      } else if(act.type==='stay'){
+        // no-op
+      } else if(act.type==='front'){
+        u.front = true;
+        log(`${p.name}の個体${u.id}：前足が生えた。`);
+      } else if(act.type==='back'){
+        u.back = true;
+        log(`${p.name}の個体${u.id}：後足が生えた。`);
+      } else if(act.type==='tail'){
+        u.tailCut = true;
+        u.shield = true; u.shieldUsed = false;
+        log(`${p.name}の個体${u.id}：尻尾を切った（一度だけ捕食耐性を獲得）。`);
+      } else if(act.type==='hide'){
+        u.hidden = true;
+        log(`${p.name}の個体${u.id}：物陰に隠れた。`);
+      } else if(act.type==='lay' && act.target){
+        const slot = p.units.find(t=>t.id===act.target);
+        if(slot && !slot.alive){
+          const fresh = newUnit(slot.id);
+          Object.assign(slot, fresh);
+          u.layCooldown = 2; // blocks exactly the next turn; available again the turn after
+          log(`${p.name}の個体${u.id}：新しい卵（個体${slot.id}）を産んだ。次のターンは産卵できない。`);
+        }
+      }
+      // check evolution to frog
+      if(u.stage===STAGE_TAD && u.front && u.back && u.tailCut){
+        u.stage = STAGE_FROG;
+        log(`${p.name}の個体${u.id}：カエルに進化した！（このターンは行動不可）`);
+      }
+    });
+  });
+
+  // Phase 2: eat actions
+  // attempting to eat costs that unit a cooldown regardless of outcome (limits eating to once every 2 turns)
+  [1,2].forEach(pn=>{
+    const act = game.pending[pn];
+    if(act && act.type==='eat'){
+      const actingUnit = game.players[pn].units.find(u=>u.id===act.unitId);
+      if(actingUnit) actingUnit.eatCooldown = 2;
+    }
+  });
+
+  // --- special case: both frogs targeting each other simultaneously ---
+  const p1Act = game.pending[1], p2Act = game.pending[2];
+  let mutualSkip = null; // {a:'1:A', b:'2:B'}
+  if(p1Act && p1Act.type==='eat' && p2Act && p2Act.type==='eat' &&
+     p1Act.target===p2Act.unitId && p2Act.target===p1Act.unitId){
+    const u1 = game.players[1].units.find(u=>u.id===p1Act.unitId);
+    const u2 = game.players[2].units.find(u=>u.id===p2Act.unitId);
+    if(u1 && u1.alive && u1.stage===STAGE_FROG && u2 && u2.alive && u2.stage===STAGE_FROG
+       && !u1.hidden && !u2.hidden){
+      game.mutualClashCount = (game.mutualClashCount||0) + 1;
+      if(game.mutualClashCount % 2 === 1){
+        log(`🐸💢 ${game.players[1].name}の個体${u1.id}と${game.players[2].name}の個体${u2.id}が互いを食べようとしたが、相打ちで共倒れは免れた。`);
+      } else {
+        u1.alive = false; u2.alive = false;
+        log(`🐸💥 ${game.players[1].name}の個体${u1.id}と${game.players[2].name}の個体${u2.id}が互いを食べ合い、両者とも命を落とした。`);
+      }
+      mutualSkip = { a:`1:${u1.id}`, b:`2:${u2.id}` };
+    }
+  }
+
+  [1,2].forEach(pn=>{
+    const p = game.players[pn];
+    const opp = game.players[otherPlayer(pn)];
+    const chosenPending = game.pending[pn];
+    p.units.forEach(u=>{
+      if(!u.alive) return;
+      if(!chosenPending || chosenPending.unitId!==u.id) return;
+      const act = chosenPending;
+      if(act.type!=='eat' || !act.target) return;
+      if(mutualSkip && (mutualSkip.a===`${pn}:${u.id}` || mutualSkip.b===`${pn}:${u.id}`)) return;
+      const target = opp.units.find(t=>t.id===act.target);
+      if(!target || !target.alive){
+        log(`${p.name}の個体${u.id}：狙った相手はすでにいなかった。`);
+        return;
+      }
+      if(target.hidden){
+        log(`${p.name}の個体${u.id}が相手${target.id}を狙ったが、隠れていて失敗した。`);
+        return;
+      }
+      if(target.shield && !target.shieldUsed){
+        target.shieldUsed = true; target.shield = false;
+        log(`${p.name}の個体${u.id}が相手${target.id}を襲ったが、尻尾切りの盾で耐えた！`);
+        return;
+      }
+      target.alive = false;
+      log(`💥 ${p.name}の個体${u.id}が相手${target.id}（${opp.name}）を食べた！`);
+    });
+  });
+
+  // --- last-stand hiding tracker: if a player is down to their final individual and it
+  // hides two turns running, that player forfeits the game ---
+  [1,2].forEach(pn=>{
+    const p = game.players[pn];
+    const aliveUnits = p.units.filter(u=>u.alive);
+    const act = game.pending[pn];
+    if(aliveUnits.length===1 && act && act.unitId===aliveUnits[0].id && act.type==='hide'){
+      p.lastStandHideStreak = (p.lastStandHideStreak||0) + 1;
+      if(p.lastStandHideStreak>=2){
+        log(`🏳️ ${p.name}は最後の1体のまま2ターン連続で隠れ続けたため、この時点で敗北とみなされる。`);
+      } else {
+        log(`${p.name}は最後の1体で隠れた（あと1回連続で隠れると敗北）。`);
+      }
+    } else {
+      p.lastStandHideStreak = 0;
+    }
+  });
+}
+
+function checkWin(){
+  for(const pn of [1,2]){
+    const p = game.players[pn];
+    const opp = game.players[otherPlayer(pn)];
+    const aliveCount = p.units.filter(u=>u.alive).length;
+    const frogCount = p.units.filter(u=>u.alive && u.stage===STAGE_FROG).length;
+    if(frogCount===3){ game.winner = pn; log(`🏆 ${p.name}が3体ともカエルにして勝利！`, true); return true; }
+    if(aliveCount===0){ game.winner = otherPlayer(pn); log(`🏆 ${p.name}の個体が全滅、${game.players[otherPlayer(pn)].name}の勝利！`, true); return true; }
+    if((p.lastStandHideStreak||0)>=2){
+      game.winner = otherPlayer(pn);
+      log(`🏆 ${p.name}が最後の1体のまま隠れ続けたため、${game.players[otherPlayer(pn)].name}の勝利！`, true);
+      return true;
+    }
+  }
+  return false;
+}
+
+function resetGame(){
+  game = newGame();
+  render();
+}
+
+render();
+</script>
+<footer style="text-align:center; margin-top:32px; font-size:11px; color:rgba(169,196,187,0.5); letter-spacing:0.08em;">
+  著作者　梅本らく　／　コーディング　Claude
+</footer>
+</body>
+</html>
