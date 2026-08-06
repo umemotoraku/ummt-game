@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>表裏一体 — デモンストレーション</title>
+<style>
+:root{
+  --bg-deep:#0b2422;
+  --bg-water:#123a35;
+  --pond:#1a4a42;
+  --lily:#4f8a5b;
+  --lily-light:#7ab26c;
+  --egg:#e8c468;
+  --egg-dark:#c9a24c;
+  --ink:#eaf3ee;
+  --ink-dim:#a9c4bb;
+  --p1:#4fa3e3;
+  --p1-dim:#2c5f7d;
+  --p2:#e36b5c;
+  --p2-dim:#7d3c34;
+  --danger:#e36b5c;
+  --shield:#e8c468;
+  --line: rgba(234,243,238,0.12);
+  --display: 'Yuji Syuku', serif;
+  --body: 'Zen Maru Gothic', sans-serif;
+}
+@font-face{ font-family:'Yuji Syuku'; src:local('Yuji Syuku'); }
+* { box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg-deep); color:var(--ink); font-family:var(--body); }
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--bg-water), var(--bg-deep) 70%);
+  padding:28px 16px 60px;
+}
+.wrap{ max-width:980px; margin:0 auto; }
+
+/* ---- Header ---- */
+.hero{
+  text-align:center;
+  margin-bottom:28px;
+  position:relative;
+}
+.hero .kanji{
+  font-family: var(--display);
+  font-size: clamp(40px, 9vw, 72px);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  margin:0;
+  text-shadow: 0 0 24px rgba(122,178,108,0.35);
+}
+.hero .sub{
+  color: var(--ink-dim);
+  font-size:14px;
+  letter-spacing:0.08em;
+  margin-top:6px;
+}
+.hero .ripple{
+  width:120px; height:6px; margin:14px auto 0;
+  border-radius:50%;
+  background: radial-gradient(ellipse at center, var(--lily-light), transparent 70%);
+  opacity:0.6;
+}
+
+/* ---- Difficulty bar ---- */
+.diffbar{
+  display:flex; align-items:center; gap:10px;
+  justify-content:center;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.diffbar-label{ font-size:12px; color:var(--ink-dim); letter-spacing:0.1em; }
+.diffbtn{
+  background: rgba(234,243,238,0.06);
+  border:1px solid var(--line);
+  color:var(--ink-dim);
+  padding:7px 16px;
+  border-radius:999px;
+  font-size:13px;
+  font-family:var(--body);
+  cursor:pointer;
+  transition: all .15s ease;
+}
+.diffbtn:hover{ border-color: var(--lily-light); color:var(--ink); }
+.diffbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+
+/* ---- Score line ---- */
+.scoreline{
+  text-align:center;
+  font-size:14px;
+  color:var(--ink-dim);
+  margin-bottom:16px;
+  letter-spacing:0.05em;
+}
+.scoreline b{ color:var(--ink); font-size:16px; }
+
+/* ---- AI reasoning note (collapsible "cheat" panel) ---- */
+.ainote{
+  background: rgba(122,178,108,0.08);
+  border:1px solid rgba(122,178,108,0.3);
+  border-radius:12px;
+  padding:10px 16px;
+  font-size:13px;
+  color:var(--ink);
+  margin-bottom:18px;
+  line-height:1.6;
+}
+.ainote summary{
+  cursor:pointer;
+  color: var(--lily-light);
+  font-weight:700;
+  list-style:none;
+}
+.ainote summary::-webkit-details-marker{ display:none; }
+.ainote summary::before{ content:'▶ '; font-size:11px; }
+.ainote[open] summary::before{ content:'▼ '; }
+.ainote-body{ margin-top:8px; color:var(--ink-dim); }
+
+/* ---- Rules note ---- */
+.notebox{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px 18px;
+  font-size:13px;
+  line-height:1.8;
+  color:var(--ink-dim);
+  margin-bottom:26px;
+}
+.notebox b{ color:var(--ink); }
+.notebox summary{ cursor:pointer; color:var(--ink); font-weight:700; margin-bottom:6px; }
+
+/* ---- Boards ---- */
+.boards{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-bottom:22px;
+}
+@media (max-width:680px){ .boards{ grid-template-columns:1fr; } }
+
+.board{
+  border-radius:18px;
+  padding:16px;
+  border:1px solid var(--line);
+  position:relative;
+  overflow:hidden;
+}
+.board.p1{ background: linear-gradient(160deg, rgba(79,163,227,0.14), rgba(18,58,53,0.4)); border-color: rgba(79,163,227,0.35); }
+.board.p2{ background: linear-gradient(160deg, rgba(227,107,92,0.14), rgba(18,58,53,0.4)); border-color: rgba(227,107,92,0.35); }
+.board.active{ box-shadow: 0 0 0 2px var(--lily-light), 0 0 24px rgba(122,178,108,0.25); }
+
+.board h2{
+  font-family:var(--display);
+  font-size:20px;
+  margin:0 0 4px;
+  display:flex; align-items:center; gap:8px;
+}
+.board .status{ font-size:12px; color:var(--ink-dim); margin-bottom:12px; }
+
+/* ---- Stars ---- */
+.stars{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:6px 0; }
+.star{
+  width:38px; height:38px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; border:1px solid var(--line);
+  font-size:18px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.star.white{ background:#eaf3ee; color:#0b2422; }
+.star.black{ background:#16302c; color:#eaf3ee; border-color:#2c5f7d; }
+.star.selectable{ cursor:pointer; }
+.star.selectable:hover{ box-shadow:0 0 0 2px var(--lily-light); transform:translateY(-2px); }
+.star.selected{ box-shadow:0 0 0 3px var(--egg); transform:translateY(-3px) scale(1.06); }
+.init-dot{
+  position:absolute; bottom:-3px; right:-3px; width:11px; height:11px;
+  border-radius:50%; border:2px solid var(--bg-deep);
+}
+.init-dot.white{ background:#eaf3ee; }
+.init-dot.black{ background:#16302c; }
+
+/* ---- Controls ---- */
+.controls{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.controls h3{
+  font-family: var(--display);
+  margin:0 0 4px;
+  font-size:18px;
+}
+.controls .hint{ font-size:12px; color:var(--ink-dim); margin-bottom:14px; }
+
+.btnrow{ display:flex; flex-wrap:wrap; gap:8px; }
+.actbtn{
+  background: rgba(234,243,238,0.06);
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:13px;
+  font-family:var(--body);
+  cursor:pointer;
+  transition: all .15s ease;
+}
+.actbtn:hover{ background: rgba(122,178,108,0.18); border-color:var(--lily-light); }
+.actbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+.actbtn:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.confirm-row{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
+.confirmbtn{
+  background: var(--lily); color:#0b2422; border:none; font-weight:700;
+  padding:10px 22px; border-radius:10px; font-size:14px; cursor:pointer; font-family:var(--body);
+}
+.confirmbtn:disabled{ background: rgba(234,243,238,0.1); color:var(--ink-dim); cursor:not-allowed; }
+
+/* ---- Log ---- */
+.log{
+  background: rgba(11,36,34,0.6);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px 18px;
+  font-size:13px;
+  max-height:220px;
+  overflow-y:auto;
+  color:var(--ink-dim);
+}
+.log h3{ font-family:var(--display); font-size:15px; color:var(--ink); margin:0 0 8px; }
+.log .entry{ margin-bottom:4px; }
+.log .turn-mark{ color:var(--lily-light); font-weight:700; margin-top:8px; display:block; }
+
+/* ---- Overlay for game over ---- */
+.gameover{
+  text-align:center; padding:30px; border-radius:18px;
+  background: linear-gradient(160deg, rgba(122,178,108,0.2), rgba(11,36,34,0.6));
+  border:1px solid var(--lily-light);
+  margin-bottom:18px;
+}
+.gameover .win{ font-family:var(--display); font-size:30px; margin-bottom:10px; }
+.resetbtn{
+  background:transparent; border:1px solid var(--lily-light); color:var(--ink);
+  padding:10px 24px; border-radius:10px; cursor:pointer; font-family:var(--body); font-size:14px;
+}
+.resetbtn:hover{ background: rgba(122,178,108,0.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kanji">表裏一体</p>
+    <div class="sub">WHITE ★ BLACK — 初期色を完全反転させるカードゲーム</div>
+    <div class="ripple"></div>
+  </div>
+
+  <details class="notebox">
+    <summary>このデモでのルール解釈（要確認）</summary>
+    <div>
+      ・開始時（および各ラウンド開始時）、まずどちらが白／黒になるかをランダムに決め、<b>自分の7つの星は全て同じ色で塗りつぶされ</b>、相手は必ずその逆の色で7つとも塗りつぶされます。この色を各プレイヤーの「初期色」として記録します。<br>
+      ・目的：<b>相手より先に、自分の7つの星すべてを初期色とは異なる色に塗りつぶす</b>こと。<br>
+      ・先攻／後攻はゲーム開始時にランダムに決定。以降は<b>1手ごとに交互</b>に手番が回ります。<br>
+      ・自分の手番では、手札「0・1・2・3・ランダム」から1枚を選びます（ランダム札は使う瞬間に0〜4の数字が決まります）。選んだ数字の分だけ、星の色を反転させます。<b>0は何も起きません</b>。<br>
+      ・変換する星は<b>自分のものでも相手のものでも自由に組み合わせて</b>選べます（例：3なら自分1個＋相手2個、など。合計が数字とぴったり一致する必要があります）。<br>
+      ・手札の5枚（ランダム札含む）をすべて使い切ったプレイヤーは、手札をリセットして再び5枚から選べるようになり、同時にそのプレイヤーの<b>初期色の白黒が入れ替わります</b>（＝目標が反転）。<br>
+      ・毎手番の後、両プレイヤーの状態を確認し、初期色から完全に反転しているプレイヤーがいれば<b>そのラウンドの勝者</b>となり1勝。両者の星を配り直して次のラウンドへ進みます。<br>
+      ・<b>先に2勝した方が総合勝利</b>です。<br>
+      ・<b>ハードモードでは、NPCの初期色（＝目標）が見えなくなります</b>。現在の色は見えますが、NPCがどれだけ達成に近いかは推測するしかありません。
+    </div>
+  </details>
+
+  <div id="app"></div>
+
+</div>
+
+<footer style="text-align:center; margin-top:32px; font-size:11px; color:rgba(169,196,187,0.5); letter-spacing:0.08em;">
+  <div style="margin-bottom:10px;">
+    <a href="https://umemotoraku.github.io/ummt-game/index" style="color:var(--lily-light); text-decoration:none; border-bottom:1px solid rgba(122,178,108,0.4); padding-bottom:2px;">TOP</a>
+  </div>
+  著作者　梅本らく　／　コーディング　Claude
+</footer>
+
+<script>
+const CARD_IDS = ['0','1','2','3','R'];
+
+function otherPlayer(p){ return p===1?2:1; }
+function randInt(maxExclusive){ return Math.floor(Math.random()*maxExclusive); }
+
+function makeStarSet(color){
+  const stars = [];
+  for(let i=0;i<7;i++){
+    stars.push({ id:'s'+i, initial:color, current:color });
+  }
+  return stars;
+}
+
+function assignRoundColors(){
+  const p1color = Math.random()<0.5 ? 'white' : 'black';
+  const p2color = p1color==='white' ? 'black' : 'white';
+  return { 1:p1color, 2:p2color };
+}
+
+function newPlayer(name, color){
+  return { name, stars:makeStarSet(color), hand:['0','1','2','3','R'] };
+}
+
+function newGame(){
+  const first = Math.random()<0.5 ? 1 : 2;
+  const colors = assignRoundColors();
+  const g = {
+    turn:1,
+    round:1,
+    turnPlayer:first,
+    score:{1:0,2:0},
+    phase:'select-card', // select-card -> select-stars -> (aithinking) -> gameover
+    pendingCard:null,    // {id, value}
+    pendingFlips:[],     // [{player, starId}]
+    players:{ 1:newPlayer('あなた', colors[1]), 2:newPlayer('NPC', colors[2]) },
+    lastAIMove:null,
+    winner:null,
+    log:[]
+  };
+  g.log.push({ text:`ゲーム開始。あなたの初期色は${colors[1]==='white'?'白':'黒'}、NPCの初期色は${colors[2]==='white'?'白':'黒'}。${first===1?'あなた':'NPC'}が先攻です。`, turnMark:true });
+  return g;
+}
+
+let game = newGame();
+let difficulty = 'normal'; // 'easy' | 'normal' | 'hard'
+
+function setDifficulty(d){ difficulty = d; render(); }
+
+function maybeStartAITurn(){
+  if(game.phase==='select-card' && game.turnPlayer===2 && !game.winner){
+    game.phase = 'aithinking';
+    render();
+    setTimeout(npcTakeTurn, 700);
+  }
+}
+
+function log(text, turnMark){ game.log.push({ text, turnMark: !!turnMark }); }
+
+function countNeeded(p){ return p.stars.filter(s=>s.current===s.initial).length; }
+function isPerfectInversion(p){ return p.stars.every(s=>s.current!==s.initial); }
+function toggleStar(star){ star.current = star.current==='white' ? 'black' : 'white'; }
+
+function cardLabel(id, value){
+  return id==='R' ? `ランダム札(${value})` : `数字札「${id}」`;
+}
+
+// --- core action application, shared by human & NPC ---
+function performAction(actingPlayerNum, cardId, value, flips){
+  const actor = game.players[actingPlayerNum];
+  actor.hand = actor.hand.filter(c=>c!==cardId);
+
+  flips.forEach(f=>{
+    const p = game.players[f.player];
+    const star = p.stars.find(s=>s.id===f.starId);
+    if(star) toggleStar(star);
+  });
+
+  const selfCount = flips.filter(f=>f.player===actingPlayerNum).length;
+  const oppCount = flips.length - selfCount;
+  log(`${actor.name}が${cardLabel(cardId,value)}を使用。自分の星${selfCount}個／相手の星${oppCount}個を変換した。`);
+
+  if(actor.hand.length===0){
+    actor.hand = ['0','1','2','3','R'];
+    actor.stars.forEach(s=> s.initial = s.initial==='white' ? 'black' : 'white');
+    log(`${actor.name}の手札を使い切ったため、手札をリセットし、初期色（目標）の白黒を入れ替えた。`);
+  }
+
+  checkRoundEnd(actingPlayerNum);
+}
+
+function checkRoundEnd(actingPlayerNum){
+  if(game.winner) return;
+  const order = [actingPlayerNum, otherPlayer(actingPlayerNum)];
+  for(const pn of order){
+    const p = game.players[pn];
+    if(isPerfectInversion(p)){
+      game.score[pn]++;
+      log(`🌟 ${p.name}の星が初期色から完全に反転！ラウンド${game.round}を制した（スコア あなた${game.score[1]} - NPC${game.score[2]}）。`, true);
+      if(game.score[pn]>=2){
+        game.winner = pn;
+        game.phase = 'gameover';
+        log(`🏆 ${p.name}の勝利！`, true);
+      } else {
+        startNewRound();
+      }
+      return;
+    }
+  }
+}
+
+function startNewRound(){
+  game.round++;
+  const colors = assignRoundColors();
+  game.players[1].stars = makeStarSet(colors[1]);
+  game.players[2].stars = makeStarSet(colors[2]);
+  game.players[1].hand = ['0','1','2','3','R'];
+  game.players[2].hand = ['0','1','2','3','R'];
+  log(`── ラウンド${game.round} 開始（星を配り直しました。あなたの初期色は${colors[1]==='white'?'白':'黒'}、NPCの初期色は${colors[2]==='white'?'白':'黒'}） ──`, true);
+}
+
+function endTurnAndSwap(){
+  if(game.winner){ game.phase='gameover'; return; }
+  game.turnPlayer = otherPlayer(game.turnPlayer);
+  game.turn++;
+  game.phase = 'select-card';
+  game.pendingCard = null;
+  game.pendingFlips = [];
+}
+
+// --- human interaction ---
+function chooseCard(id){
+  if(game.phase!=='select-card' || game.turnPlayer!==1) return;
+  if(!game.players[1].hand.includes(id)) return;
+  const value = id==='R' ? randInt(5) : parseInt(id);
+  game.pendingCard = { id, value };
+  game.pendingFlips = [];
+  game.phase = 'select-stars';
+  render();
+}
+
+function cancelCard(){
+  game.pendingCard = null;
+  game.pendingFlips = [];
+  game.phase = 'select-card';
+  render();
+}
+
+function toggleStarSelect(playerNum, starId){
+  if(game.phase!=='select-stars' || game.turnPlayer!==1) return;
+  const idx = game.pendingFlips.findIndex(f=>f.player===playerNum && f.starId===starId);
+  if(idx>=0){
+    game.pendingFlips.splice(idx,1);
+  } else {
+    if(game.pendingFlips.length >= game.pendingCard.value) return;
+    game.pendingFlips.push({ player:playerNum, starId });
+  }
+  render();
+}
+
+function confirmHumanAction(){
+  if(game.pendingFlips.length !== game.pendingCard.value) return;
+  performAction(1, game.pendingCard.id, game.pendingCard.value, game.pendingFlips);
+  if(!game.winner) endTurnAndSwap();
+  render();
+  maybeStartAITurn();
+}
+
+// --- NPC AI ---
+function pickAIAction(){
+  const ai = game.players[2];
+  const human = game.players[1];
+  const aiNeeded = countNeeded(ai);
+
+  const candidates = ai.hand.map(id=>{
+    const value = id==='R' ? randInt(5) : parseInt(id);
+    let score;
+    if(value>0 && value===aiNeeded) score = 100;
+    else if(value>0 && value<aiNeeded) score = 50 + value*5;
+    else if(value===0) score = 5;
+    else score = 40 - (value-aiNeeded)*8;
+    return { id, value, score };
+  });
+  candidates.sort((a,b)=> b.score - a.score);
+
+  let chosen;
+  if(difficulty==='hard'){
+    chosen = candidates[0];
+  } else if(difficulty==='normal'){
+    const top = candidates.slice(0, Math.min(2, candidates.length));
+    chosen = top[randInt(top.length)];
+  } else {
+    chosen = candidates[randInt(candidates.length)];
+  }
+
+  const value = chosen.value;
+  let flips = [];
+  let reasonParts = [];
+
+  if(value>0){
+    const ownRemaining = ai.stars.filter(s=>s.current===s.initial);
+    const ownFlipCount = Math.min(value, ownRemaining.length);
+    const shuffledOwn = [...ownRemaining].sort(()=>Math.random()-0.5);
+    shuffledOwn.slice(0, ownFlipCount).forEach(s=> flips.push({ player:2, starId:s.id }));
+
+    const remaining = value - ownFlipCount;
+    if(remaining>0){
+      let pool;
+      if(difficulty!=='easy'){
+        const humanMatched = human.stars.filter(s=>s.current!==s.initial); // opponent's already-achieved stars (good to undo)
+        const humanUnmatched = human.stars.filter(s=>s.current===s.initial);
+        pool = [...humanMatched, ...humanUnmatched];
+      } else {
+        pool = [...human.stars].sort(()=>Math.random()-0.5);
+      }
+      pool.slice(0, remaining).forEach(s=> flips.push({ player:1, starId:s.id }));
+    }
+
+    if(ownFlipCount>0) reasonParts.push(`自分の未反転の星を${ownFlipCount}個変換して目標に近づけようとした`);
+    if(remaining>0) reasonParts.push(`相手の星を${remaining}個変換した（相手の反転済みの星を戻して妨害を狙った可能性がある）`);
+    if(aiNeeded>0 && value===aiNeeded && remaining===0) reasonParts.push('この一手で自分の完全反転（ラウンド勝利）を狙った');
+  } else {
+    reasonParts.push('0を選び、何も変換しなかった');
+  }
+
+  const reason = `${cardLabel(chosen.id, value)}を使用。` + reasonParts.join('、') + '。';
+  return { cardId: chosen.id, value, flips, reason };
+}
+
+function npcTakeTurn(){
+  const result = pickAIAction();
+  game.lastAIMove = { reason: result.reason };
+  performAction(2, result.cardId, result.value, result.flips);
+  if(!game.winner) endTurnAndSwap();
+  game.phase = game.winner ? 'gameover' : game.phase;
+  render();
+}
+
+function resetGame(){
+  game = newGame();
+  render();
+  maybeStartAITurn();
+}
+
+// --- rendering ---
+function renderStarsGrid(playerNum, p, selectableAll, fog){
+  return `<div class="stars">${p.stars.map(s=>{
+    const selected = game.pendingFlips.some(f=>f.player===playerNum && f.starId===s.id);
+    const initDot = fog ? '' : `<span class="init-dot ${s.initial}"></span>`;
+    const clickAttr = selectableAll ? `onclick="toggleStarSelect(${playerNum},'${s.id}')"` : '';
+    return `<div class="star ${s.current} ${selected?'selected':''} ${selectableAll?'selectable':''}" ${clickAttr}>
+      <span class="glyph">★</span>${initDot}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderBoard(playerNum){
+  const p = game.players[playerNum];
+  const fog = (difficulty==='hard' && playerNum===2);
+  const selectableAll = (game.phase==='select-stars' && game.turnPlayer===1);
+  const needed = countNeeded(p);
+  const activeTurn = game.turnPlayer===playerNum && game.phase!=='gameover';
+  return `<div class="board p${playerNum} ${activeTurn?'active':''}">
+    <h2>${playerNum===1?'🔵':'🟢'} ${p.name}</h2>
+    <div class="status">残り変換必要数: ${fog?'？':needed+'/7'}　手札: ${p.hand.length}枚</div>
+    ${renderStarsGrid(playerNum, p, selectableAll, fog)}
+  </div>`;
+}
+
+function renderControls(){
+  if(game.phase==='aithinking'){
+    return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCが考え中...</div></div>`;
+  }
+  if(game.phase==='gameover') return '';
+  if(game.turnPlayer!==1){
+    return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCの行動を待っています…</div></div>`;
+  }
+  if(game.phase==='select-card'){
+    return `<div class="controls">
+      <h3>🔵 あなたの手番（ターン${game.turn}）</h3>
+      <div class="hint">使用する札を1枚選んでください。数字の分だけ、自分か相手（自由に組み合わせ可）の星を反転させます。</div>
+      <div class="btnrow">
+        ${CARD_IDS.filter(id=>game.players[1].hand.includes(id)).map(id=>{
+          const label = id==='R' ? 'ランダム札 🎲' : id;
+          return `<button class="actbtn" onclick="chooseCard('${id}')">${label}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  if(game.phase==='select-stars'){
+    const value = game.pendingCard.value;
+    const selectedCount = game.pendingFlips.length;
+    return `<div class="controls">
+      <h3>🔵 星を選択（${cardLabel(game.pendingCard.id, value)} → ${value}個変換）</h3>
+      <div class="hint">上の盤面から、変換したい星を合計${value}個クリックしてください（自分・相手どちらでも自由に組み合わせ可）。選択中：${selectedCount}/${value}</div>
+      <div class="confirm-row">
+        <button class="resetbtn" onclick="cancelCard()">札を選び直す</button>
+        <button class="confirmbtn" ${selectedCount===value?'':'disabled'} onclick="confirmHumanAction()">実行</button>
+      </div>
+    </div>`;
+  }
+  return '';
+}
+
+function render(){
+  const app = document.getElementById('app');
+  let html = '';
+
+  html += `<div class="diffbar">
+    <span class="diffbar-label">難易度</span>
+    ${['easy','normal','hard'].map(d=>{
+      const labels = {easy:'イージー', normal:'ノーマル', hard:'ハード'};
+      return `<button class="diffbtn ${difficulty===d?'sel':''}" onclick="setDifficulty('${d}')">${labels[d]}</button>`;
+    }).join('')}
+  </div>`;
+
+  if(game.phase==='gameover'){
+    html += `<div class="gameover">
+      <div class="win">🏆 ${game.players[game.winner].name} の勝利！</div>
+      <div style="font-size:13px; color:var(--ink-dim); margin-bottom:14px;">最終スコア　あなた ${game.score[1]} − ${game.score[2]} NPC</div>
+      <button class="resetbtn" onclick="resetGame()">もう一度遊ぶ</button>
+    </div>`;
+  }
+
+  html += `<div class="scoreline">ラウンド ${game.round}　スコア　<b>あなた ${game.score[1]} − ${game.score[2]} NPC</b></div>`;
+
+  html += `<div class="boards">${renderBoard(1)}${renderBoard(2)}</div>`;
+
+  if(game.lastAIMove){
+    html += `<details class="ainote">
+      <summary>🧠 NPCの判断を見る（カンニング）</summary>
+      <div class="ainote-body">${game.lastAIMove.reason}</div>
+    </details>`;
+  }
+
+  if(game.phase!=='gameover'){
+    html += renderControls();
+  }
+
+  html += `<div class="log"><h3>ログ</h3>${game.log.length? game.log.map(l=> l.turnMark? `<span class="turn-mark">${l.text}</span>` : `<div class="entry">${l.text}</div>`).join('') : '<div class="entry">まだ何も起きていません。</div>'}</div>`;
+
+  app.innerHTML = html;
+}
+
+render();
+maybeStartAITurn();
+</script>
+</body>
+</html>
