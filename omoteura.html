@@ -287,6 +287,7 @@ const CARD_IDS = ['0','1','2','3','R'];
 
 function otherPlayer(p){ return p===1?2:1; }
 function randInt(maxExclusive){ return Math.floor(Math.random()*maxExclusive); }
+function colorName(c){ return c==='white' ? '白' : '黒'; }
 
 function makeStarSet(color){
   const stars = [];
@@ -302,37 +303,68 @@ function assignRoundColors(){
   return { 1:p1color, 2:p2color };
 }
 
-function newPlayer(name, color){
-  return { name, stars:makeStarSet(color), hand:['0','1','2','3','R'] };
+function newPlayerShell(name, color){
+  return { name, stars:makeStarSet(color), hand:['0','1','2','3','R'], pool:[0,1,2,3,4], rvalue:null };
 }
 
-function newGame(){
+// --- game creation (called once the human has picked their starting random-card value and pressed Start) ---
+function createGame(humanInitialR){
   const first = Math.random()<0.5 ? 1 : 2;
   const colors = assignRoundColors();
+  const p1 = newPlayerShell('あなた', colors[1]);
+  const p2 = newPlayerShell('NPC', colors[2]);
+
+  p1.pool = p1.pool.filter(v=>v!==humanInitialR);
+  p1.rvalue = humanInitialR;
+
+  const npcIdx = randInt(p2.pool.length);
+  p2.rvalue = p2.pool.splice(npcIdx,1)[0];
+
   const g = {
     turn:1,
     round:1,
+    firstPlayer:first,
     turnPlayer:first,
     score:{1:0,2:0},
-    phase:'select-card', // select-card -> select-stars -> (aithinking) -> gameover
-    pendingCard:null,    // {id, value}
-    pendingFlips:[],     // [{player, starId}]
-    players:{ 1:newPlayer('あなた', colors[1]), 2:newPlayer('NPC', colors[2]) },
+    phase:'select-card', // select-card -> select-stars -> choose-random -> (aithinking) -> gameover
+    pendingCard:null,
+    pendingFlips:[],
+    needsRandomChoice:false,
+    players:{ 1:p1, 2:p2 },
     lastAIMove:null,
     winner:null,
     log:[]
   };
-  g.log.push({ text:`ゲーム開始。あなたの初期色は${colors[1]==='white'?'白':'黒'}、NPCの初期色は${colors[2]==='white'?'白':'黒'}。${first===1?'あなた':'NPC'}が先攻です。`, turnMark:true });
+  g.log = [];
   return g;
 }
 
-let game = newGame();
+let game = null;
+let gameStarted = false;
+let setupChoice = null;
 let difficulty = 'normal'; // 'easy' | 'normal' | 'hard'
 
 function setDifficulty(d){ difficulty = d; render(); }
 
+function chooseInitialRandomValue(v){
+  if(gameStarted) return;
+  setupChoice = v;
+  render();
+}
+
+function startGame(){
+  if(setupChoice===null) return;
+  game = createGame(setupChoice);
+  gameStarted = true;
+  log(`あなたの初期色は${colorName(game.players[1].stars[0].initial)}、NPCの初期色は${colorName(game.players[2].stars[0].initial)}。`, true);
+  log(`${game.firstPlayer===1?'あなた':'NPC'}が先攻、${game.firstPlayer===1?'NPC':'あなた'}が後攻です。`, true);
+  render();
+  maybeStartAITurn();
+}
+
 function maybeStartAITurn(){
-  if(game.phase==='select-card' && game.turnPlayer===2 && !game.winner){
+  if(!game || game.winner) return;
+  if(game.phase==='select-card' && game.turnPlayer===2){
     game.phase = 'aithinking';
     render();
     setTimeout(npcTakeTurn, 700);
@@ -347,6 +379,25 @@ function toggleStar(star){ star.current = star.current==='white' ? 'black' : 'wh
 
 function cardLabel(id, value){
   return id==='R' ? `ランダム札(${value})` : `数字札「${id}」`;
+}
+
+// gives a player a fresh 5-card hand and (re)selects their random-card value for the new cycle
+function beginNewHandCycle(playerNum, actor){
+  if(actor.pool.length===0){
+    actor.pool = [0,1,2,3,4];
+    log(`${actor.name}のランダム札の候補（0〜4）をすべて使い切ったため、候補をリセットした。`);
+  }
+  if(playerNum===2){
+    const idx = randInt(actor.pool.length);
+    actor.rvalue = actor.pool.splice(idx,1)[0];
+    actor.hand = ['0','1','2','3','R'];
+    log(`NPCは新しいサイクルのランダム札の数字を${actor.rvalue}に決定した。`);
+  } else {
+    actor.rvalue = null;
+    actor.hand = ['0','1','2','3'];
+    game.needsRandomChoice = true;
+    log(`あなたは新しいサイクルのランダム札の数字（未選択の候補：${actor.pool.join(', ')}）を選んでください。`);
+  }
 }
 
 // --- core action application, shared by human & NPC ---
@@ -365,9 +416,9 @@ function performAction(actingPlayerNum, cardId, value, flips){
   log(`${actor.name}が${cardLabel(cardId,value)}を使用。自分の星${selfCount}個／相手の星${oppCount}個を変換した。`);
 
   if(actor.hand.length===0){
-    actor.hand = ['0','1','2','3','R'];
     actor.stars.forEach(s=> s.initial = s.initial==='white' ? 'black' : 'white');
-    log(`${actor.name}の手札を使い切ったため、手札をリセットし、初期色（目標）の白黒を入れ替えた。`);
+    log(`${actor.name}の手札を使い切ったため、初期色を${colorName(actor.stars[0].initial)}に入れ替えた。`);
+    beginNewHandCycle(actingPlayerNum, actor);
   }
 
   checkRoundEnd(actingPlayerNum);
@@ -398,9 +449,9 @@ function startNewRound(){
   const colors = assignRoundColors();
   game.players[1].stars = makeStarSet(colors[1]);
   game.players[2].stars = makeStarSet(colors[2]);
-  game.players[1].hand = ['0','1','2','3','R'];
-  game.players[2].hand = ['0','1','2','3','R'];
-  log(`── ラウンド${game.round} 開始（星を配り直しました。あなたの初期色は${colors[1]==='white'?'白':'黒'}、NPCの初期色は${colors[2]==='white'?'白':'黒'}） ──`, true);
+  log(`── ラウンド${game.round} 開始（星を配り直しました。あなたの初期色は${colorName(colors[1])}、NPCの初期色は${colorName(colors[2])}） ──`, true);
+  beginNewHandCycle(1, game.players[1]);
+  beginNewHandCycle(2, game.players[2]);
 }
 
 function endTurnAndSwap(){
@@ -416,7 +467,7 @@ function endTurnAndSwap(){
 function chooseCard(id){
   if(game.phase!=='select-card' || game.turnPlayer!==1) return;
   if(!game.players[1].hand.includes(id)) return;
-  const value = id==='R' ? randInt(5) : parseInt(id);
+  const value = id==='R' ? game.players[1].rvalue : parseInt(id);
   game.pendingCard = { id, value };
   game.pendingFlips = [];
   game.phase = 'select-stars';
@@ -445,6 +496,27 @@ function toggleStarSelect(playerNum, starId){
 function confirmHumanAction(){
   if(game.pendingFlips.length !== game.pendingCard.value) return;
   performAction(1, game.pendingCard.id, game.pendingCard.value, game.pendingFlips);
+  finishHumanStep();
+}
+
+function chooseRandomValue(v){
+  if(game.phase!=='choose-random' || !game.needsRandomChoice) return;
+  const actor = game.players[1];
+  if(!actor.pool.includes(v)) return;
+  actor.pool = actor.pool.filter(x=>x!==v);
+  actor.rvalue = v;
+  if(!actor.hand.includes('R')) actor.hand.push('R');
+  game.needsRandomChoice = false;
+  log(`あなたはランダム札の数字を${v}に決定した。`);
+  finishHumanStep();
+}
+
+function finishHumanStep(){
+  if(game.needsRandomChoice && !game.winner){
+    game.phase = 'choose-random';
+    render();
+    return;
+  }
   if(!game.winner) endTurnAndSwap();
   render();
   maybeStartAITurn();
@@ -457,7 +529,7 @@ function pickAIAction(){
   const aiNeeded = countNeeded(ai);
 
   const candidates = ai.hand.map(id=>{
-    const value = id==='R' ? randInt(5) : parseInt(id);
+    const value = id==='R' ? ai.rvalue : parseInt(id);
     let score;
     if(value>0 && value===aiNeeded) score = 100;
     else if(value>0 && value<aiNeeded) score = 50 + value*5;
@@ -491,7 +563,7 @@ function pickAIAction(){
     if(remaining>0){
       let pool;
       if(difficulty!=='easy'){
-        const humanMatched = human.stars.filter(s=>s.current!==s.initial); // opponent's already-achieved stars (good to undo)
+        const humanMatched = human.stars.filter(s=>s.current!==s.initial);
         const humanUnmatched = human.stars.filter(s=>s.current===s.initial);
         pool = [...humanMatched, ...humanUnmatched];
       } else {
@@ -515,15 +587,26 @@ function npcTakeTurn(){
   const result = pickAIAction();
   game.lastAIMove = { reason: result.reason };
   performAction(2, result.cardId, result.value, result.flips);
-  if(!game.winner) endTurnAndSwap();
-  game.phase = game.winner ? 'gameover' : game.phase;
+
+  if(game.needsRandomChoice && !game.winner){
+    game.phase = 'choose-random';
+    render();
+    return;
+  }
+  if(!game.winner){
+    endTurnAndSwap();
+    if(game.firstPlayer===2){
+      log(`先攻NPCのターンが終わりました。`);
+    }
+  }
   render();
 }
 
 function resetGame(){
-  game = newGame();
+  game = null;
+  gameStarted = false;
+  setupChoice = null;
   render();
-  maybeStartAITurn();
 }
 
 // --- rendering ---
@@ -544,9 +627,10 @@ function renderBoard(playerNum){
   const selectableAll = (game.phase==='select-stars' && game.turnPlayer===1);
   const needed = countNeeded(p);
   const activeTurn = game.turnPlayer===playerNum && game.phase!=='gameover';
+  const roleLabel = game.firstPlayer===playerNum ? '先攻' : '後攻';
   return `<div class="board p${playerNum} ${activeTurn?'active':''}">
-    <h2>${playerNum===1?'🔵':'🟢'} ${p.name}</h2>
-    <div class="status">残り変換必要数: ${fog?'？':needed+'/7'}　手札: ${p.hand.length}枚</div>
+    <h2>${playerNum===1?'🔵':'🟢'} ${p.name}　<span style="font-size:11px; color:var(--ink-dim); font-family:var(--body);">（${roleLabel}）</span></h2>
+    <div class="status">初期色: ${fog?'？':colorName(p.stars[0].initial)}　残り変換必要数: ${fog?'？':needed+'/7'}　手札: ${p.hand.length}枚</div>
     ${renderStarsGrid(playerNum, p, selectableAll, fog)}
   </div>`;
 }
@@ -556,6 +640,14 @@ function renderControls(){
     return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCが考え中...</div></div>`;
   }
   if(game.phase==='gameover') return '';
+  if(game.phase==='choose-random'){
+    const pool = game.players[1].pool;
+    return `<div class="controls">
+      <h3>🔵 ランダム札の数字を選択</h3>
+      <div class="hint">手札をリセットしました。まだ選んでいない候補の中から、新しいサイクルのランダム札の数字を選んでください。</div>
+      <div class="btnrow">${pool.map(v=>`<button class="actbtn" onclick="chooseRandomValue(${v})">${v}</button>`).join('')}</div>
+    </div>`;
+  }
   if(game.turnPlayer!==1){
     return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCの行動を待っています…</div></div>`;
   }
@@ -565,7 +657,7 @@ function renderControls(){
       <div class="hint">使用する札を1枚選んでください。数字の分だけ、自分か相手（自由に組み合わせ可）の星を反転させます。</div>
       <div class="btnrow">
         ${CARD_IDS.filter(id=>game.players[1].hand.includes(id)).map(id=>{
-          const label = id==='R' ? 'ランダム札 🎲' : id;
+          const label = id==='R' ? `ランダム札(${game.players[1].rvalue}) 🎲` : id;
           return `<button class="actbtn" onclick="chooseCard('${id}')">${label}</button>`;
         }).join('')}
       </div>
@@ -586,17 +678,42 @@ function renderControls(){
   return '';
 }
 
-function render(){
-  const app = document.getElementById('app');
-  let html = '';
-
-  html += `<div class="diffbar">
+function renderDiffBar(){
+  return `<div class="diffbar">
     <span class="diffbar-label">難易度</span>
     ${['easy','normal','hard'].map(d=>{
       const labels = {easy:'イージー', normal:'ノーマル', hard:'ハード'};
       return `<button class="diffbtn ${difficulty===d?'sel':''}" onclick="setDifficulty('${d}')">${labels[d]}</button>`;
     }).join('')}
   </div>`;
+}
+
+function renderSetupScreen(){
+  const app = document.getElementById('app');
+  let html = renderDiffBar();
+  html += `<div class="controls">
+    <h3>🌗 ゲーム開始準備</h3>
+    <div class="hint">まず、あなたの「ランダム札」の最初の数字（0〜4）を選んでください。この数字は、あなたの手札5枚を使い切るまで変更できません。</div>
+    <div class="btnrow">
+      ${[0,1,2,3,4].map(v=>`<button class="actbtn ${setupChoice===v?'sel':''}" onclick="chooseInitialRandomValue(${v})">${v}</button>`).join('')}
+    </div>
+    <div class="confirm-row">
+      <button class="confirmbtn" ${setupChoice===null?'disabled':''} onclick="startGame()">ゲームスタート</button>
+    </div>
+  </div>`;
+  app.innerHTML = html;
+}
+
+function render(){
+  if(!gameStarted || !game){
+    renderSetupScreen();
+    return;
+  }
+
+  const app = document.getElementById('app');
+  let html = '';
+
+  html += renderDiffBar();
 
   if(game.phase==='gameover'){
     html += `<div class="gameover">
@@ -606,7 +723,7 @@ function render(){
     </div>`;
   }
 
-  html += `<div class="scoreline">ラウンド ${game.round}　スコア　<b>あなた ${game.score[1]} − ${game.score[2]} NPC</b></div>`;
+  html += `<div class="scoreline">ラウンド ${game.round}　スコア　<b>あなた ${game.score[1]} − ${game.score[2]} NPC</b>　／　先攻：${game.players[game.firstPlayer].name}　後攻：${game.players[otherPlayer(game.firstPlayer)].name}</div>`;
 
   html += `<div class="boards">${renderBoard(1)}${renderBoard(2)}</div>`;
 
@@ -627,7 +744,6 @@ function render(){
 }
 
 render();
-maybeStartAITurn();
 </script>
 </body>
 </html>
