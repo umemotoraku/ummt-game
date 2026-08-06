@@ -292,6 +292,7 @@ body{
       ・<b>カエル同士が同じターンに互いを食べようとした場合</b>：1回目は不発（共倒れなし）、2回目は両者とも死亡します（以降は奇数回目＝不発／偶数回目＝両者死亡、を繰り返します）。<br>
       ・食べる行動は<b>2ターンに1回まで</b>（使うと次のターンは使えず、その次からまた使えます）。<br>
       ・自分の個体が<b>最後の1体だけ</b>になった状態で、その個体が<b>2ターン連続で隠れた</b>場合、その時点で相手の勝利となります（隠れ続けての引き延ばしを防止）。<br>
+      ・<b>ハードモードでは、NPCの状態（卵／オタマジャクシ／カエル、足や尻尾の進行状況など）が見えなくなります</b>。生存しているかどうかはA〜Cの枠でわかりますが、中身は「❔」表示に。食べる対象を選ぶときもA〜Cの記号のみで、相手の状態を見て選ぶことはできません。<br>
       ・勝利条件：自分の個体を<b>3体ともカエル</b>にする、または相手の個体を<b>3体とも捕食し全滅</b>させる。
     </div>
   </details>
@@ -414,27 +415,38 @@ function render(){
 
 function renderBoard(num, p, opp, isP2side){
   const activeSelecting = (game.phase==='p1select' && num===1);
+  const fog = (difficulty==='hard' && num===2); // hard mode: opponent's state is hidden
   return `<div class="board p${num} ${activeSelecting?'active':''}">
     <h2>${num===1?'🔵':'🟢'} ${p.name}</h2>
-    <div class="status">生存: ${p.units.filter(u=>u.alive).length}/3　カエル: ${p.units.filter(u=>u.stage===STAGE_FROG && u.alive).length}/3</div>
+    <div class="status">生存: ${p.units.filter(u=>u.alive).length}/3　カエル: ${fog ? '？' : p.units.filter(u=>u.stage===STAGE_FROG && u.alive).length + '/3'}</div>
     <div class="units">
-      ${p.units.map(u=>renderUnit(u)).join('')}
+      ${p.units.map(u=>renderUnit(u, fog)).join('')}
     </div>
   </div>`;
 }
 
-function renderUnit(u){
-  const flags = [];
-  if(u.stage!==STAGE_EGG){
-    flags.push(`<span class="flag ${u.front?'on':''}">前足</span>`);
-    flags.push(`<span class="flag ${u.back?'on':''}">後足</span>`);
-    flags.push(`<span class="flag ${u.tailCut?'on':''}">尻尾</span>`);
+function renderUnit(u, fog){
+  if(fog && u.alive){
+    return `<div class="unit">
+      <div class="label">個体 ${u.id}</div>
+      <div class="glyph">❔</div>
+      <div class="flags"></div>
+      <div class="label">不明</div>
+    </div>`;
   }
-  if(u.shield && !u.shieldUsed) flags.push(`<span class="flag shield">盾</span>`);
-  if(u.hidden) flags.push(`<span class="flag hidden">隠</span>`);
-  if(u.stage===STAGE_FROG) flags.push(`<span class="flag frog">完成</span>`);
-  if(u.stage===STAGE_FROG && u.layCooldown>0) flags.push(`<span class="flag">産卵休み</span>`);
-  if(u.stage===STAGE_FROG && u.eatCooldown>0) flags.push(`<span class="flag">捕食休み</span>`);
+  const flags = [];
+  if(!fog){
+    if(u.stage!==STAGE_EGG){
+      flags.push(`<span class="flag ${u.front?'on':''}">前足</span>`);
+      flags.push(`<span class="flag ${u.back?'on':''}">後足</span>`);
+      flags.push(`<span class="flag ${u.tailCut?'on':''}">尻尾</span>`);
+    }
+    if(u.shield && !u.shieldUsed) flags.push(`<span class="flag shield">盾</span>`);
+    if(u.hidden) flags.push(`<span class="flag hidden">隠</span>`);
+    if(u.stage===STAGE_FROG) flags.push(`<span class="flag frog">完成</span>`);
+    if(u.stage===STAGE_FROG && u.layCooldown>0) flags.push(`<span class="flag">産卵休み</span>`);
+    if(u.stage===STAGE_FROG && u.eatCooldown>0) flags.push(`<span class="flag">捕食休み</span>`);
+  }
   return `<div class="unit ${!u.alive?'dead':''}">
     <div class="label">個体 ${u.id}</div>
     <div class="glyph">${unitGlyph(u)}</div>
@@ -471,9 +483,11 @@ function renderControls(){
     let targetHtml = '';
     if(chosen && chosen.type==='eat'){
       const targets = opp.units.filter(t=>t.alive);
+      const fog = difficulty==='hard';
       targetHtml = `<div class="target-select">${targets.map(t=>{
         const sel = chosen.target===t.id ? 'sel':'';
-        return `<span class="target-chip ${sel}" onclick="chooseTarget(${current},'${u.id}','${t.id}')">NPC ${t.id}（${stageLabel(t)}）</span>`;
+        const info = fog ? '' : `（${stageLabel(t)}）`;
+        return `<span class="target-chip ${sel}" onclick="chooseTarget(${current},'${u.id}','${t.id}')">NPC ${t.id}${info}</span>`;
       }).join('')}</div>`;
     }
     if(chosen && chosen.type==='lay'){
@@ -760,6 +774,9 @@ function resetGame(){
 render();
 </script>
 <footer style="text-align:center; margin-top:32px; font-size:11px; color:rgba(169,196,187,0.5); letter-spacing:0.08em;">
+  <div style="margin-bottom:10px;">
+    <a href="https://umemotoraku.github.io/ummt-game/index" style="color:var(--lily-light); text-decoration:none; border-bottom:1px solid rgba(122,178,108,0.4); padding-bottom:2px;">TOP</a>
+  </div>
   著作者　梅本らく　／　コーディング　Claude
 </footer>
 </body>
