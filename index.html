@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ummt-game</title>
+
+<style>
+:root{
+    --bg-deep:#0b2422;
+    --bg-water:#123a35;
+    --lily:#4f8a5b;
+    --lily-light:#7ab26c;
+    --ink:#eaf3ee;
+    --ink-dim:#a9c4bb;
+    --line:rgba(234,243,238,0.12);
+
+    --display:"Yuji Syuku",serif;
+    --body:"Zen Maru Gothic",sans-serif;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    background:var(--bg-deep);
+    color:var(--ink);
+    font-family:var(--body);
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:
+        radial-gradient(1200px 600px at 50% -10%,var(--bg-water),var(--bg-deep) 70%);
+    padding:24px;
+}
+
+.wrap{
+    width:100%;
+    max-width:700px;
+}
+
+.hero{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.hero h1{
+    margin:0;
+    font-family:var(--display);
+    font-size:clamp(38px,8vw,64px);
+    letter-spacing:.15em;
+}
+
+.hero p{
+    color:var(--ink-dim);
+    margin-top:10px;
+}
+
+.links{
+    background:rgba(234,243,238,.04);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:24px;
+}
+
+.links h2{
+    margin-top:0;
+    margin-bottom:20px;
+    font-family:var(--display);
+}
+
+.link-list{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.link-list a{
+    display:block;
+    padding:16px;
+    border-radius:12px;
+    text-decoration:none;
+    color:var(--ink);
+    background:rgba(234,243,238,.06);
+    border:1px solid var(--line);
+    transition:.2s;
+}
+
+.link-list a:hover{
+    background:rgba(122,178,108,.18);
+    border-color:var(--lily-light);
+}
+
+footer{
+    text-align:center;
+    margin-top:28px;
+    font-size:12px;
+    color:rgba(169,196,187,.6);
+    
+}
+.notebox{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px 18px;
+  font-size:13px;
+  line-height:1.8;
+  color:var(--ink-dim);
+  margin-bottom:26px;
+}
+
+.notebox b{
+  color:var(--ink);
+}
+
+.notebox summary{
+  cursor:pointer;
+  color:var(--ink);
+  font-weight:700;
+  margin-bottom:6px;
+}
+
+.controls{
+  background: rgba(234,243,238,0.04);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:18px;
+}
+
+.controls h3{
+  font-family: var(--display);
+  margin:0 0 4px;
+  font-size:18px;
+}
+
+.controls .hint{
+  font-size:12px;
+  color:var(--ink-dim);
+  margin-bottom:14px;
+}
+
+.btnrow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.actbtn{
+  background: rgba(234,243,238,0.06);
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:13px;
+  font-family:var(--body);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  text-decoration:none;
+  transition:.2s;
+}
+
+.actbtn:hover{
+  background: rgba(122,178,108,0.18);
+  border-color:var(--lily-light);
+}
+
+.actbtn:visited{
+  color:var(--ink);
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+    <div class="hero">
+        <h1>ummt-game</h1>
+        <p>梅本らくが作ったゲーム集</p>
+    </div>
+<details class="notebox">
+    <summary>このウェブサイトについて</summary>
+    <div>
+        　梅本らくがロジックを組んだオリジナルゲーム集です<br>
+        　AIや他者の介入は一切ありません<br>
+        　つまり、梅本の脳みそから直送でお送りいたします
+        <br><br>
+        　ただし、コーディングはClaudと自分の合作なのでご注意ください
+    </div>
+</details>
+    <div class="links">
+        <h2>ゲーム集</h2>
+
+        <div class="link-list">
+
+            <a href="https://umemotoraku.github.io/ummt-game/omoteura">
+                表裏一体
+            </a>
+
+            <a href="https://umemotoraku.github.io/ummt-game/inochitori">
+                命取り
+            </a>
+
+            <a href="https://umemotoraku.github.io/ummt-game/iroawse">
+                色合わせ
+            </a>
+
+            <a href="https://umemotoraku.github.io/ummt-game/katatsumuri">
+                蝸牛
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        著作者　梅本らく
+    </footer>
+
+</div>
+
+</body>
+</html>
