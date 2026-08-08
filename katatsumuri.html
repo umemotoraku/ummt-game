@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>蝸牛 — デモンストレーション</title>
+<style>
+:root{
+  --bg-deep:#0b2422;
+  --bg-water:#123a35;
+  --lily:#4f8a5b;
+  --lily-light:#7ab26c;
+  --egg:#e8c468;
+  --ink:#eaf3ee;
+  --ink-dim:#a9c4bb;
+  --danger:#e36b5c;
+  --line: rgba(234,243,238,0.12);
+  --display: 'Yuji Syuku', serif;
+  --body: 'Zen Maru Gothic', sans-serif;
+
+  --c-blue:#4fa3e3;
+  --c-red:#e36b5c;
+  --c-white:#eaf3ee;
+  --c-black:#12201d;
+}
+* { box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg-deep); color:var(--ink); font-family:var(--body); }
+body{
+  min-height:100vh;
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-water), var(--bg-deep) 70%);
+  padding:28px 16px 60px;
+}
+.wrap{ max-width:900px; margin:0 auto; }
+
+.hero{ text-align:center; margin-bottom:28px; }
+.hero .kanji{
+  font-family: var(--display);
+  font-size: clamp(36px, 8vw, 64px);
+  letter-spacing: 0.12em;
+  margin:0;
+  text-shadow: 0 0 24px rgba(122,178,108,0.35);
+}
+.hero .sub{ color: var(--ink-dim); font-size:14px; letter-spacing:0.06em; margin-top:6px; }
+.hero .ripple{ width:120px; height:6px; margin:14px auto 0; border-radius:50%;
+  background: radial-gradient(ellipse at center, var(--lily-light), transparent 70%); opacity:0.6; }
+
+.notebox{
+  background: rgba(234,243,238,0.04); border:1px solid var(--line); border-radius:14px;
+  padding:16px 18px; font-size:13px; line-height:1.8; color:var(--ink-dim); margin-bottom:26px;
+}
+.notebox b{ color:var(--ink); }
+.notebox summary{ cursor:pointer; color:var(--ink); font-weight:700; margin-bottom:6px; }
+
+.scoreline{ text-align:center; font-size:14px; color:var(--ink-dim); margin-bottom:16px; letter-spacing:0.03em; }
+.scoreline b{ color:var(--ink); font-size:16px; }
+
+.ainote{
+  background: rgba(122,178,108,0.08); border:1px solid rgba(122,178,108,0.3); border-radius:12px;
+  padding:10px 16px; font-size:13px; color:var(--ink); margin-bottom:18px; line-height:1.6;
+}
+.ainote summary{ cursor:pointer; color: var(--lily-light); font-weight:700; list-style:none; }
+.ainote summary::-webkit-details-marker{ display:none; }
+.ainote summary::before{ content:'▶ '; font-size:11px; }
+.ainote[open] summary::before{ content:'▼ '; }
+.ainote-body{ margin-top:8px; color:var(--ink-dim); }
+
+.boardwrap{
+  border-radius:18px; padding:16px; border:1px solid var(--line);
+  background: linear-gradient(160deg, rgba(122,178,108,0.08), rgba(18,58,53,0.4));
+  margin-bottom:18px; overflow:auto;
+}
+.grid{ display:grid; gap:2px; justify-content:center; }
+.cell{
+  border-radius:3px; border:1px solid rgba(234,243,238,0.08);
+  background: rgba(234,243,238,0.03); position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+.cell.clickable{ cursor:pointer; }
+.cell.clickable:hover{ box-shadow: inset 0 0 0 2px var(--egg); }
+.cell.blue{ background: var(--c-blue); }
+.cell.red{ background: var(--c-red); }
+.cell.white{ background: var(--c-white); }
+.cell.black{ background: var(--c-black); border-color:#000; }
+.marker{ font-size:9px; line-height:1; }
+
+.controls{
+  background: rgba(234,243,238,0.04); border:1px solid var(--line); border-radius:18px;
+  padding:18px; margin-bottom:18px;
+}
+.controls h3{ font-family: var(--display); margin:0 0 4px; font-size:18px; }
+.controls .hint{ font-size:12px; color:var(--ink-dim); margin-bottom:14px; }
+
+.btnrow{ display:flex; flex-wrap:wrap; gap:8px; }
+.actbtn{
+  background: rgba(234,243,238,0.06); border:1px solid var(--line); color:var(--ink);
+  padding:8px 14px; border-radius:10px; font-size:13px; font-family:var(--body); cursor:pointer;
+}
+.actbtn:hover{ background: rgba(122,178,108,0.18); border-color:var(--lily-light); }
+.actbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+.actbtn:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.confirm-row{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
+.confirmbtn{
+  background: var(--lily); color:#0b2422; border:none; font-weight:700;
+  padding:10px 22px; border-radius:10px; font-size:14px; cursor:pointer; font-family:var(--body);
+}
+.confirmbtn:disabled{ background: rgba(234,243,238,0.1); color:var(--ink-dim); cursor:not-allowed; }
+
+.log{
+  background: rgba(11,36,34,0.6); border:1px solid var(--line); border-radius:14px;
+  padding:14px 18px; font-size:13px; max-height:220px; overflow-y:auto; color:var(--ink-dim);
+}
+.log h3{ font-family:var(--display); font-size:15px; color:var(--ink); margin:0 0 8px; }
+.log .entry{ margin-bottom:4px; }
+.log .turn-mark{ color:var(--lily-light); font-weight:700; margin-top:8px; display:block; }
+
+.gameover{
+  text-align:center; padding:30px; border-radius:18px;
+  background: linear-gradient(160deg, rgba(122,178,108,0.2), rgba(11,36,34,0.6));
+  border:1px solid var(--lily-light); margin-bottom:18px;
+}
+.gameover .win{ font-family:var(--display); font-size:28px; margin-bottom:10px; }
+.resetbtn{
+  background:transparent; border:1px solid var(--lily-light); color:var(--ink);
+  padding:10px 24px; border-radius:10px; cursor:pointer; font-family:var(--body); font-size:14px;
+}
+.resetbtn:hover{ background: rgba(122,178,108,0.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kanji">蝸牛</p>
+    <div class="sub">盤の縁をぐるぐる進む、色そろえと通せんぼのゲーム</div>
+    <div class="ripple"></div>
+  </div>
+
+  <details class="notebox">
+    <summary>このデモでのルール解釈・簡略化した点（要確認）</summary>
+    <div>
+      ・盤はプレイヤーとNPCで共有する1枚です。<br>
+      ・開始時、盤サイズ（9×9 / 18×18）、スタート地点（左上・右上・左下・右下、被ってもOK）、回る向き（時計回り／反時計回り）を選びます。先攻／後攻は開始時ランダム。<br>
+      ・移動は盤の縁から中心へ向かう<b>渦巻き</b>状です。毎ターン、数字札「1・2・3」から未使用の1枚を選び（3枚使い切ったらリセット）、その数だけ渦の進行方向へ進みます。今のレーン（辺）を端まで進み切ると、自動で次の内側のレーンへ曲がります。渦を最後（盤の中心）まで進み切ったとき、または進路変更の結果すでに通ったレーン（行・列）へ戻ろうとしたときは、その時点でスタート地点と回る向きを選び直し、新しい渦をまた外側から始めます。<br>
+      ・<b>移動そのものでは色は置きません。</b>マスに色を残すのは、白マスを置く行動だけです。<br>
+      ・<b>白マス</b>：自分の番で移動したあと、今いる「レーン」（進行中の行・列。盤面でハイライト表示されます）の空きマスに白を置けます。置かずに温存すると使用可能数として蓄積し（最大9）、後で使うときは、蓄積数+1個を上限に<b>好きな数だけ</b>選んで置けます（使わなかった分はそのまま使用可能数として残ります）。<br>
+      ・白マスは<b>1個置くたびに</b>判定します。縦か横に白がちょうど3つ並んだ瞬間はもちろん、すでに2つ並んでいた白どうしを1個の配置で橋渡しして4つ以上のつながりを作った場合も、その中に含まれる「3つの組み合わせ」の数だけポイントが入ります（例：白1・白2・空き・白4 の状態で3に置くと、1-2-3と2-3-4の2組ができるので2ポイント）。関わった白マスはすべて黒に変わります。<br>
+      ・移動をふさぐ「壁」は、盤の端（物理的な壁）だけでなく、白マス・黒マスも含みます。進む先がそのいずれかだった場合、その場で即座に進行方向を（レーンを曲がるのと同じ回転規則で）90度変え、残っている数字札の分だけそのまま同じターン内で移動を続けます（迂回のためにターンを消費したり、次の番まで持ち越したりはしません）。<br>
+      ・迂回先も白か黒でふさがっていて進めない場合は、渦を最後まで進み切った時と同様に、その場でスタート地点と回る向きを選び直します（敗北にはなりません）。<br>
+      ・<b>「道をふさがれて敗北」となるのは、現在地の四方（上下左右。盤の端は壁として扱う）が白か黒のマス（3方が白黒＋残り1方が盤の端、を含む）で完全に囲まれ、まったく動けなくなった場合のみ</b>です。<br>
+      ・盤面が完全に埋まったら、その時点の得点が多い方の勝ち（同点は引き分け）。<br>
+      ・<b>デモ上の簡略化</b>：本来「4つの数字札(1,2,3)」と記載がありましたが、枚数と数字の対応が不明瞭だったため、このデモでは「1・2・3の3枚」として実装しています。効果判定は移動後の1回のみとし、連鎖は考慮していません。
+    </div>
+  </details>
+
+  <div id="app"></div>
+
+</div>
+
+<footer style="text-align:center; margin-top:32px; font-size:11px; color:rgba(169,196,187,0.5); letter-spacing:0.08em;">
+  <div style="margin-bottom:10px;">
+    <a href="https://umemotoraku.github.io/ummt-game/index" style="color:var(--lily-light); text-decoration:none; border-bottom:1px solid rgba(122,178,108,0.4); padding-bottom:2px;">TOP</a>
+  </div>
+  著作者　梅本らく　／　コーディング　Claude
+</footer>
+
+<script>
+const CORNERS = {
+  topLeft:   { label:'左上', pos:(n)=>[0,0] },
+  topRight:  { label:'右上', pos:(n)=>[0,n-1] },
+  bottomLeft:{ label:'左下', pos:(n)=>[n-1,0] },
+  bottomRight:{label:'右下', pos:(n)=>[n-1,n-1] }
+};
+// which spiral phase each corner starts on, for each rotation
+// ccw cycle: top -> right -> bottom -> left -> (shrink) -> top ...
+// cw  cycle: top_rev -> left_rev -> bottom_rev -> right_rev -> (shrink) -> top_rev ...
+const START_PHASE = {
+  ccw: { topLeft:'top', topRight:'right', bottomRight:'bottom', bottomLeft:'left' },
+  cw:  { topRight:'top_rev', topLeft:'left_rev', bottomLeft:'bottom_rev', bottomRight:'right_rev' }
+};
+
+const PHASE_DEF = {
+  top:        { dr:0, dc:1,  next:'right',      shrink:'top' },
+  right:      { dr:1, dc:0,  next:'bottom',     shrink:'right' },
+  bottom:     { dr:0, dc:-1, next:'left',       shrink:'bottom' },
+  left:       { dr:-1,dc:0,  next:'top',        shrink:'left' },
+  top_rev:    { dr:0, dc:-1, next:'left_rev',   shrink:'top' },
+  left_rev:   { dr:1, dc:0,  next:'bottom_rev', shrink:'left' },
+  bottom_rev: { dr:0, dc:1,  next:'right_rev',  shrink:'bottom' },
+  right_rev:  { dr:-1,dc:0,  next:'top_rev',    shrink:'right' }
+};
+// maps (rotation, direction vector) back to the matching phase, so that after a redirect
+// (pivoting around an obstacle) the player's boundary-shrinking spiral tracking stays intact
+const DIR_TO_PHASE = {
+  ccw: { '0,1':'top', '1,0':'right', '0,-1':'bottom', '-1,0':'left' },
+  cw:  { '0,-1':'top_rev', '1,0':'left_rev', '0,1':'bottom_rev', '-1,0':'right_rev' }
+};
+
+function otherPlayer(p){ return p===1?2:1; }
+function turnDir(dr,dc,rotation){
+  return rotation==='ccw' ? [dc,-dr] : [-dc,dr];
+}
+function emptyBoard(n){ const b=[]; for(let r=0;r<n;r++) b.push(new Array(n).fill(null)); return b; }
+function boardFull(board,n){ for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(!board[r][c]) return false; return true; }
+
+// ---- setup state ----
+let setup = { n:null, corner:null, rotation:null };
+let gameStarted = false;
+let game = null;
+
+function pickN(n){ setup.n = n; render(); }
+function pickCorner(c){ setup.corner = c; render(); }
+function pickRotation(r){ setup.rotation = r; render(); }
+
+function startGame(){
+  if(!setup.n || !setup.corner || !setup.rotation) return;
+  game = createGame(setup.n, setup.corner, setup.rotation);
+  gameStarted = true;
+  render();
+  maybeStartAITurn();
+}
+
+function randomCorner(){ const keys=Object.keys(CORNERS); return keys[Math.floor(Math.random()*keys.length)]; }
+
+function laneKeyForPhase(phase, pos){
+  const def = PHASE_DEF[phase];
+  return def.dc!==0 ? ('row:'+pos[0]) : ('col:'+pos[1]);
+}
+
+function newSpiralState(n, corner, rotation){
+  const startPos = CORNERS[corner].pos(n);
+  const phase = START_PHASE[rotation][corner];
+  return {
+    bounds: { top:0, bottom:n-1, left:0, right:n-1 },
+    phase,
+    usedLanes: new Set([ laneKeyForPhase(phase, startPos) ])
+  };
+}
+
+function createGame(n, humanCorner, humanRotation){
+  const npcCorner = randomCorner();
+  const npcRotation = Math.random()<0.5 ? 'cw':'ccw';
+  const first = Math.random()<0.5 ? 1 : 2;
+
+  const g = {
+    n,
+    board: emptyBoard(n),
+    turnPlayer: first,
+    firstPlayer: first,
+    phase: 'select-card', // select-card -> white-decision -> white-place -> choose-restart -> (aithinking) -> gameover
+    score: {1:0,2:0},
+    players: {
+      1: { name:'あなた', corner:humanCorner, rotation:humanRotation, pos:[...CORNERS[humanCorner].pos(n)], cardPool:[1,2,3], whiteBank:0, spiral:newSpiralState(n,humanCorner,humanRotation) },
+      2: { name:'NPC', corner:npcCorner, rotation:npcRotation, pos:[...CORNERS[npcCorner].pos(n)], cardPool:[1,2,3], whiteBank:0, spiral:newSpiralState(n,npcCorner,npcRotation) }
+    },
+    pendingWhiteNeeded: 0,
+    pendingWhitePlaced: 0,
+    lastAIMove: null,
+    winner: null,
+    log: []
+  };
+  g.log.push({ text:`盤面${n}×${n}でゲーム開始。あなた：${CORNERS[humanCorner].label}スタート／${humanRotation==='cw'?'時計回り':'反時計回り'}。NPC：${CORNERS[npcCorner].label}スタート／${npcRotation==='cw'?'時計回り':'反時計回り'}。${first===1?'あなた':'NPC'}が先攻です。`, turnMark:true });
+  return g;
+}
+
+function log(text, turnMark){ game.log.push({ text, turnMark: !!turnMark }); }
+
+// ---- spiral movement ----
+function spiralPhaseAtEnd(bounds, r, c, phase){
+  switch(phase){
+    case 'top': return c>=bounds.right;
+    case 'right': return r>=bounds.bottom;
+    case 'bottom': return c<=bounds.left;
+    case 'left': return r<=bounds.top;
+    case 'top_rev': return c<=bounds.left;
+    case 'left_rev': return r>=bounds.bottom;
+    case 'bottom_rev': return c>=bounds.right;
+    case 'right_rev': return r<=bounds.top;
+  }
+}
+
+function spiralComplete(bounds){ return bounds.top>bounds.bottom || bounds.left>bounds.right; }
+
+// advances a player one cell. Returns 'moved' | 'blocked' | 'restart-needed' | 'spiral-done'
+function isSurrounded(n, board, r, c){
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  return dirs.every(([dr,dc])=>{
+    const nr=r+dr, nc=c+dc;
+    if(nr<0||nr>=n||nc<0||nc>=n) return true; // the board edge counts as a blocked side
+    const cell = board[nr][nc];
+    return cell && (cell.color==='white' || cell.color==='black');
+  });
+}
+
+function isPassable(n, board, r, c){
+  if(r<0||r>=n||c<0||c>=n) return false;
+  const cell = board[r][c];
+  return !(cell && (cell.color==='white' || cell.color==='black'));
+}
+
+// "the wall" blocking movement includes the board edge AND white/black squares.
+// Hitting any of them immediately pivots (rotation-consistent 90°) and continues moving
+// in the same step — it never wastes the remaining number-card value or defers to next turn.
+// Whenever movement (whether a normal spiral turn or an obstacle-redirect) would send the
+// player into a row/column lane they have already fully used before, that's treated as
+// "come back around" and triggers a fresh start-point selection.
+function stepPlayer(playerNum){
+  const p = game.players[playerNum];
+  const n = game.n;
+  const s = p.spiral;
+
+  if(spiralComplete(s.bounds)) return 'spiral-done';
+  let [r, c] = p.pos;
+  let phase = s.phase;
+  let bounds = s.bounds;
+  if(spiralPhaseAtEnd(bounds, r, c, phase)){
+    const def = PHASE_DEF[phase];
+    bounds[def.shrink] += (def.shrink==='top'||def.shrink==='left') ? 1 : -1;
+    const nextPhase = def.next;
+    const key = laneKeyForPhase(nextPhase, [r,c]);
+    if(s.usedLanes.has(key)) return 'spiral-done';
+    s.usedLanes.add(key);
+    phase = nextPhase;
+    s.phase = phase;
+    if(spiralComplete(bounds)) return 'spiral-done';
+  }
+
+  let def = PHASE_DEF[phase];
+  let dr = def.dr, dc = def.dc;
+  let nr = r+dr, nc = c+dc;
+  let guard = 0;
+  while(!isPassable(n, game.board, nr, nc)){
+    if(guard>=4){
+      if(isSurrounded(n, game.board, r, c)) return 'blocked';
+      return 'restart-needed';
+    }
+    [dr, dc] = turnDir(dr, dc, p.rotation);
+    nr = r+dr; nc = c+dc;
+    guard++;
+  }
+
+  if(guard>0){
+    const mappedPhase = DIR_TO_PHASE[p.rotation][dr+','+dc];
+    const key = mappedPhase ? laneKeyForPhase(mappedPhase, [r,c]) : (dc!==0 ? ('row:'+r) : ('col:'+c));
+    if(s.usedLanes.has(key)) return 'spiral-done';
+    s.usedLanes.add(key);
+    if(mappedPhase) s.phase = mappedPhase;
+  }
+  p.pos = [nr, nc];
+  return 'moved';
+}
+
+function currentLane(playerNum){
+  const p = game.players[playerNum];
+  const s = p.spiral;
+  const dir = PHASE_DEF[s.phase];
+  return dir.dc!==0 ? { type:'row', index:p.pos[0] } : { type:'col', index:p.pos[1] };
+}
+
+function currentLaneEmptyCells(playerNum){
+  const n = game.n, board = game.board;
+  const lane = currentLane(playerNum);
+  const cells = [];
+  if(lane.type==='row'){
+    for(let c=0;c<n;c++) if(!board[lane.index][c]) cells.push([lane.index,c]);
+  } else {
+    for(let r=0;r<n;r++) if(!board[r][lane.index]) cells.push([r,lane.index]);
+  }
+  return cells;
+}
+
+function checkWhiteMatches(playerNum){
+  const n=game.n, board=game.board;
+  const toClear = new Set();
+  let pts = 0;
+  for(let r=0;r<n;r++){
+    let c=0;
+    while(c<n){
+      if(board[r][c] && board[r][c].color==='white'){
+        let c2=c; while(c2<n && board[r][c2] && board[r][c2].color==='white') c2++;
+        const len = c2-c;
+        if(len>=3){ for(let k=c;k<c2;k++) toClear.add(r+','+k); pts += (len-2); }
+        c=c2;
+      } else c++;
+    }
+  }
+  for(let c=0;c<n;c++){
+    let r=0;
+    while(r<n){
+      if(board[r][c] && board[r][c].color==='white'){
+        let r2=r; while(r2<n && board[r2][c] && board[r2][c].color==='white') r2++;
+        const len = r2-r;
+        if(len>=3){ for(let k=r;k<r2;k++) toClear.add(k+','+c); pts += (len-2); }
+        r=r2;
+      } else r++;
+    }
+  }
+  toClear.forEach(key=>{ const [r,c]=key.split(',').map(Number); board[r][c]={color:'black'}; });
+  if(pts){
+    game.score[playerNum]+=pts;
+    log(`${game.players[playerNum].name}が白を3つ以上つなげて${pts}ポイント獲得！揃ったマスは黒になった。`);
+  }
+}
+
+function checkGameOver(){
+  const n = game.n;
+  if(boardFull(game.board, n)){
+    if(game.score[1]===game.score[2]) game.winner='draw';
+    else game.winner = game.score[1]>game.score[2] ? 1 : 2;
+    game.phase = 'gameover';
+    log(game.winner==='draw' ? '🤝 盤面が埋まり、得点も同点。引き分け！' : `🏆 盤面が埋まりました。${game.players[game.winner].name}の勝利！`, true);
+    return true;
+  }
+  return false;
+}
+
+function endTurn(){
+  if(checkGameOver()){ render(); return; }
+  game.turnPlayer = otherPlayer(game.turnPlayer);
+  game.phase = 'select-card';
+  render();
+  maybeStartAITurn();
+}
+
+function maybeStartAITurn(){
+  if(!game || game.winner) return;
+  if(game.phase==='select-card' && game.turnPlayer===2){
+    game.phase = 'aithinking';
+    render();
+    setTimeout(npcTakeTurn, 700);
+  }
+}
+
+// ---- human interaction ----
+function chooseCard(v){
+  if(game.phase!=='select-card' || game.turnPlayer!==1) return;
+  const p = game.players[1];
+  if(!p.cardPool.includes(v)) return;
+  p.cardPool = p.cardPool.filter(x=>x!==v);
+  if(p.cardPool.length===0){ p.cardPool=[1,2,3]; log('あなたの数字札を使い切ったため、1・2・3をリセットした。'); }
+
+  let outcome='moved';
+  for(let i=0;i<v;i++){
+    outcome = stepPlayer(1);
+    if(outcome!=='moved') break;
+  }
+  log(`あなたが数字札「${v}」を使用して進んだ。`);
+  handleMoveOutcome(1, outcome);
+}
+
+function handleMoveOutcome(playerNum, outcome){
+  if(outcome==='blocked'){
+    const loser=playerNum, winner=otherPlayer(playerNum);
+    game.winner = winner; game.phase='gameover';
+    log(`🏆 ${game.players[loser].name}は四方をふさがれて動けなくなった。${game.players[winner].name}の勝利！`, true);
+    render();
+    return true;
+  }
+  if(outcome==='spiral-done' || outcome==='restart-needed'){
+    log(outcome==='spiral-done'
+      ? `${game.players[playerNum].name}が渦を最後まで進み切った。`
+      : `${game.players[playerNum].name}は道をふさがれて迂回できなかったため、新しいスタート地点を選び直す。`);
+    if(playerNum===2){
+      const corner = randomCorner();
+      const rotation = Math.random()<0.5?'cw':'ccw';
+      const p = game.players[2];
+      p.corner=corner; p.rotation=rotation; p.pos=[...CORNERS[corner].pos(game.n)]; p.spiral = newSpiralState(game.n,corner,rotation);
+      log(`NPCは新しいスタート地点（${CORNERS[corner].label}／${rotation==='cw'?'時計回り':'反時計回り'}）を選び直した。`);
+    } else {
+      game.phase = 'choose-restart';
+      render();
+      return true;
+    }
+  }
+  if(playerNum===1){
+    game.phase = 'white-decision';
+    render();
+  }
+  return false;
+}
+
+function chooseRestart(corner, rotation){
+  const p = game.players[1];
+  p.corner = corner; p.rotation = rotation;
+  p.pos = [...CORNERS[corner].pos(game.n)];
+  p.spiral = newSpiralState(game.n, corner, rotation);
+  log(`あなたは新しいスタート地点（${CORNERS[corner].label}／${rotation==='cw'?'時計回り':'反時計回り'}）を選んだ。`);
+  game.phase = 'white-decision';
+  render();
+}
+
+function chooseWhiteAction(useIt){
+  const p = game.players[1];
+  if(useIt){
+    game.phase = 'white-count';
+  } else {
+    p.whiteBank = Math.min(9, p.whiteBank+1);
+    log(`あなたは白マスを置かず、使用可能数を貯めた（現在 ${p.whiteBank}）。`);
+    endTurn();
+    return;
+  }
+  render();
+}
+
+function chooseWhiteCount(n){
+  const p = game.players[1];
+  const max = p.whiteBank + 1;
+  if(n<1 || n>max) return;
+  p.whiteBank -= (n-1);
+  game.pendingWhiteNeeded = n;
+  game.pendingWhitePlaced = 0;
+  log(`あなたは白マスを${n}個置くことにした（残り使用可能数：${p.whiteBank}）。`);
+  game.phase = 'white-place';
+  render();
+}
+
+function placeWhite(r,c){
+  if(game.phase!=='white-place') return;
+  if(game.board[r][c]) return;
+  const cells = currentLaneEmptyCells(1);
+  if(!cells.some(([rr,cc])=>rr===r&&cc===c)) return;
+  game.board[r][c] = { color:'white' };
+  game.pendingWhitePlaced++;
+  log(`あなたが(${r+1},${c+1})に白マスを置いた。`);
+  checkWhiteMatches(1); // check immediately so a run doesn't overshoot 3 before converting
+  if(game.pendingWhitePlaced>=game.pendingWhiteNeeded){
+    endTurn();
+  } else {
+    render();
+  }
+}
+
+function resetGame(){
+  game=null; gameStarted=false; setup={n:null,corner:null,rotation:null};
+  render();
+}
+
+// ---- NPC ----
+function npcTakeTurn(){
+  const p = game.players[2];
+  const v = p.cardPool[Math.floor(Math.random()*p.cardPool.length)];
+  p.cardPool = p.cardPool.filter(x=>x!==v);
+  if(p.cardPool.length===0){ p.cardPool=[1,2,3]; log('NPCの数字札を使い切ったため、1・2・3をリセットした。'); }
+
+  let outcome='moved';
+  for(let i=0;i<v;i++){
+    outcome = stepPlayer(2);
+    if(outcome!=='moved') break;
+  }
+  log(`NPCが数字札「${v}」を使用して進んだ。`);
+  const reasonParts = [`数字札「${v}」を使用して進んだ`];
+
+  if(outcome==='blocked'){
+    game.winner = 1; game.phase='gameover';
+    log(`🏆 NPCは四方をふさがれて動けなくなった。あなたの勝利！`, true);
+    game.lastAIMove = { reason: reasonParts.join('。') + '。しかし進めなくなった。' };
+    render();
+    return;
+  }
+  if(outcome==='spiral-done' || outcome==='restart-needed'){
+    reasonParts.push(outcome==='spiral-done' ? '渦を最後まで進み切り、新しいスタート地点を選び直した' : '迂回できず、新しいスタート地点を選び直した');
+    const corner = randomCorner();
+    const rotation = Math.random()<0.5?'cw':'ccw';
+    p.corner=corner; p.rotation=rotation; p.pos=[...CORNERS[corner].pos(game.n)]; p.spiral = newSpiralState(game.n,corner,rotation);
+    log(`NPCは新しいスタート地点（${CORNERS[corner].label}／${rotation==='cw'?'時計回り':'反時計回り'}）を選び直した。`);
+  }
+
+  const useThreshold = Math.random()<0.4;
+  if(p.whiteBank>=3 || useThreshold){
+    const available = p.whiteBank+1;
+    const placeCount = 1 + Math.floor(Math.random()*available); // NPC picks a random amount to place, 1..available
+    const cells = currentLaneEmptyCells(2).sort(()=>Math.random()-0.5).slice(0, placeCount);
+    cells.forEach(([r,c])=>{
+      game.board[r][c] = { color:'white' };
+      checkWhiteMatches(2); // check immediately after each placement so runs don't overshoot 3
+    });
+    p.whiteBank = available - cells.length;
+    log(`NPCが白マスを${cells.length}個置いた（残り使用可能数：${p.whiteBank}）。`);
+    reasonParts.push(`白マスを${cells.length}個置いた`);
+  } else {
+    p.whiteBank = Math.min(9, p.whiteBank+1);
+    log(`NPCは白マスを置かず、使用可能数を貯めた（現在 ${p.whiteBank}）。`);
+    reasonParts.push('白マスは置かず温存した');
+  }
+
+  game.lastAIMove = { reason: reasonParts.join('。') + '。' };
+  endTurn();
+}
+
+// ---- rendering ----
+function cellSizePx(n){ return Math.max(14, Math.min(34, Math.floor(560/n))); }
+
+function renderBoard(){
+  const n = game.n, board = game.board, px = cellSizePx(n);
+  const placingWhite = game.phase==='white-place';
+  let laneCells = [];
+  if(placingWhite) laneCells = currentLaneEmptyCells(1).map(([r,c])=>r+','+c);
+  const laneAll = new Set();
+  if(game.phase!=='gameover'){
+    const lane1 = currentLane(1);
+    if(lane1.type==='row'){ for(let c=0;c<n;c++) laneAll.add(lane1.index+','+c); }
+    else { for(let r=0;r<n;r++) laneAll.add(r+','+lane1.index); }
+  }
+  let html = `<div class="grid" style="grid-template-columns:repeat(${n}, ${px}px);">`;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const cell = board[r][c];
+      const cls = cell ? cell.color : '';
+      const clickable = placingWhite && !cell && laneCells.includes(r+','+c);
+      const highlighted = game.turnPlayer===1 && laneAll.has(r+','+c);
+      let marker = '';
+      if(game.players[1].pos[0]===r && game.players[1].pos[1]===c) marker='🔵';
+      if(game.players[2].pos[0]===r && game.players[2].pos[1]===c) marker+='🟢';
+      const style = `width:${px}px;height:${px}px;${highlighted?'box-shadow:inset 0 0 0 2px var(--egg);':''}`;
+      html += `<div class="cell ${cls} ${clickable?'clickable':''}" style="${style}" ${clickable?`onclick="placeWhite(${r},${c})"`:''}><span class="marker">${marker}</span></div>`;
+    }
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderControls(){
+  if(game.phase==='aithinking'){
+    return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCが考え中...</div></div>`;
+  }
+  if(game.phase==='gameover') return '';
+  if(game.phase==='choose-restart'){
+    return `<div class="controls">
+      <h3>🔵 渦を進み切りました：新しいスタート地点を選択</h3>
+      <div class="hint">スタート地点と回る向きを選んでください。</div>
+      <div class="btnrow">${Object.keys(CORNERS).map(k=>`<button class="actbtn" onclick="pendingRestartCorner='${k}';render();" >${CORNERS[k].label}</button>`).join('')}</div>
+      <div class="btnrow" style="margin-top:8px;">
+        <button class="actbtn" onclick="pendingRestartRotation='cw';render();">時計回り</button>
+        <button class="actbtn" onclick="pendingRestartRotation='ccw';render();">反時計回り</button>
+      </div>
+      <div class="confirm-row">
+        <button class="confirmbtn" ${(pendingRestartCorner&&pendingRestartRotation)?'':'disabled'} onclick="chooseRestart(pendingRestartCorner,pendingRestartRotation); pendingRestartCorner=null; pendingRestartRotation=null;">決定</button>
+      </div>
+    </div>`;
+  }
+  if(game.turnPlayer!==1 && game.phase!=='white-decision' && game.phase!=='white-place' && game.phase!=='white-count'){
+    return `<div class="controls"><h3>🟢 NPC の手番</h3><div class="hint">NPCの行動を待っています…</div></div>`;
+  }
+  const p1 = game.players[1];
+  if(game.phase==='select-card'){
+    return `<div class="controls">
+      <h3>🔵 あなたの手番</h3>
+      <div class="hint">数字札（未使用のもの）を1枚選んでください。渦の進行方向にその数だけ進みます。</div>
+      <div class="btnrow">${[1,2,3].filter(v=>p1.cardPool.includes(v)).map(v=>`<button class="actbtn" onclick="chooseCard(${v})">${v}</button>`).join('')}</div>
+    </div>`;
+  }
+  if(game.phase==='white-decision'){
+    return `<div class="controls">
+      <h3>🔵 白マスを置きますか？</h3>
+      <div class="hint">現在の使用可能数：${p1.whiteBank}（置く場合、最大${p1.whiteBank+1}個まで、好きな数だけ置けます）。盤面でハイライトされている現在のレーンの空きマスに置けます。</div>
+      <div class="btnrow">
+        <button class="actbtn" onclick="chooseWhiteAction(false)">貯める（使わない）</button>
+        <button class="actbtn" onclick="chooseWhiteAction(true)">使う</button>
+      </div>
+    </div>`;
+  }
+  if(game.phase==='white-count'){
+    const max = p1.whiteBank + 1;
+    return `<div class="controls">
+      <h3>🔵 白マスを何個置きますか？</h3>
+      <div class="hint">1〜${max}個の中から、置く数を選んでください（使わなかった分は使用可能数として残ります）。</div>
+      <div class="btnrow">${Array.from({length:max},(_,i)=>i+1).map(n=>`<button class="actbtn" onclick="chooseWhiteCount(${n})">${n}個</button>`).join('')}</div>
+    </div>`;
+  }
+  if(game.phase==='white-place'){
+    return `<div class="controls">
+      <h3>🔵 白マスを置くマスを選択（${game.pendingWhitePlaced}/${game.pendingWhiteNeeded}）</h3>
+      <div class="hint">盤面でハイライトされている現在のレーンの空きマスをクリックして置いてください。</div>
+    </div>`;
+  }
+  return '';
+}
+
+let pendingRestartCorner = null;
+let pendingRestartRotation = null;
+
+function renderSetupScreen(){
+  const app = document.getElementById('app');
+  let html = `<div class="controls">
+    <h3>🌗 ゲーム開始準備</h3>
+    <div class="hint">盤サイズを選んでください。</div>
+    <div class="btnrow">
+      <button class="actbtn ${setup.n===9?'sel':''}" onclick="pickN(9)">9×9</button>
+      <button class="actbtn ${setup.n===18?'sel':''}" onclick="pickN(18)">18×18</button>
+    </div>
+    <div class="hint" style="margin-top:14px;">スタート地点を選んでください（NPCと被っても構いません）。</div>
+    <div class="btnrow">
+      ${Object.keys(CORNERS).map(k=>`<button class="actbtn ${setup.corner===k?'sel':''}" onclick="pickCorner('${k}')">${CORNERS[k].label}</button>`).join('')}
+    </div>
+    <div class="hint" style="margin-top:14px;">回る向きを選んでください。</div>
+    <div class="btnrow">
+      <button class="actbtn ${setup.rotation==='cw'?'sel':''}" onclick="pickRotation('cw')">時計回り</button>
+      <button class="actbtn ${setup.rotation==='ccw'?'sel':''}" onclick="pickRotation('ccw')">反時計回り</button>
+    </div>
+    <div class="confirm-row">
+      <button class="confirmbtn" ${(setup.n&&setup.corner&&setup.rotation)?'':'disabled'} onclick="startGame()">ゲームスタート</button>
+    </div>
+  </div>`;
+  app.innerHTML = html;
+}
+
+function render(){
+  if(!gameStarted || !game){ renderSetupScreen(); return; }
+  const app = document.getElementById('app');
+  let html = '';
+
+  if(game.phase==='gameover'){
+    html += `<div class="gameover">
+      <div class="win">${game.winner==='draw' ? '🤝 引き分け' : '🏆 ' + game.players[game.winner].name + ' の勝利！'}</div>
+      <div style="font-size:13px; color:var(--ink-dim); margin-bottom:14px;">最終得点　あなた ${game.score[1]} − ${game.score[2]} NPC</div>
+      <button class="resetbtn" onclick="resetGame()">もう一度遊ぶ</button>
+    </div>`;
+  }
+
+  html += `<div class="scoreline">盤面 ${game.n}×${game.n}　スコア　<b>あなた ${game.score[1]} − ${game.score[2]} NPC</b>　／　先攻：${game.players[game.firstPlayer].name}</div>`;
+  html += `<div class="boardwrap">${renderBoard()}</div>`;
+
+  if(game.lastAIMove){
+    html += `<details class="ainote">
+      <summary>🧠 NPCの判断を見る（カンニング）</summary>
+      <div class="ainote-body">${game.lastAIMove.reason}</div>
+    </details>`;
+  }
+
+  if(game.phase!=='gameover'){ html += renderControls(); }
+
+  html += `<div class="log"><h3>ログ</h3>${game.log.length? game.log.map(l=> l.turnMark? `<span class="turn-mark">${l.text}</span>` : `<div class="entry">${l.text}</div>`).join('') : '<div class="entry">まだ何も起きていません。</div>'}</div>`;
+
+  app.innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
