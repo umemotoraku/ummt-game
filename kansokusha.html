@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>観測者の色 — デモンストレーション</title>
+<style>
+:root{
+  --bg-deep:#0b2422;
+  --bg-water:#123a35;
+  --lily:#4f8a5b;
+  --lily-light:#7ab26c;
+  --egg:#e8c468;
+  --ink:#eaf3ee;
+  --ink-dim:#a9c4bb;
+  --danger:#e36b5c;
+  --line: rgba(234,243,238,0.12);
+  --display: 'Yuji Syuku', serif;
+  --body: 'Zen Maru Gothic', sans-serif;
+
+  --c-white:#eaf3ee;
+  --c-black:#12201d;
+}
+* { box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--bg-deep); color:var(--ink); font-family:var(--body); }
+body{
+  min-height:100vh;
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-water), var(--bg-deep) 70%);
+  padding:28px 16px 60px;
+}
+.wrap{ max-width:900px; margin:0 auto; }
+
+.hero{ text-align:center; margin-bottom:28px; }
+.hero .kanji{
+  font-family: var(--display);
+  font-size: clamp(32px, 7.5vw, 58px);
+  letter-spacing: 0.1em;
+  margin:0;
+  text-shadow: 0 0 24px rgba(122,178,108,0.35);
+}
+.hero .sub{ color: var(--ink-dim); font-size:14px; letter-spacing:0.06em; margin-top:6px; }
+.hero .ripple{ width:120px; height:6px; margin:14px auto 0; border-radius:50%;
+  background: radial-gradient(ellipse at center, var(--lily-light), transparent 70%); opacity:0.6; }
+
+.notebox{
+  background: rgba(234,243,238,0.04); border:1px solid var(--line); border-radius:14px;
+  padding:16px 18px; font-size:13px; line-height:1.8; color:var(--ink-dim); margin-bottom:26px;
+}
+.notebox b{ color:var(--ink); }
+.notebox summary{ cursor:pointer; color:var(--ink); font-weight:700; margin-bottom:6px; }
+
+.scoreline{ text-align:center; font-size:14px; color:var(--ink-dim); margin-bottom:16px; letter-spacing:0.03em; }
+.scoreline b{ color:var(--ink); font-size:16px; }
+
+.ainote{
+  background: rgba(122,178,108,0.08); border:1px solid rgba(122,178,108,0.3); border-radius:12px;
+  padding:10px 16px; font-size:13px; color:var(--ink); margin-bottom:18px; line-height:1.6;
+}
+.ainote summary{ cursor:pointer; color: var(--lily-light); font-weight:700; list-style:none; }
+.ainote summary::-webkit-details-marker{ display:none; }
+.ainote summary::before{ content:'▶ '; font-size:11px; }
+.ainote[open] summary::before{ content:'▼ '; }
+.ainote-body{ margin-top:8px; color:var(--ink-dim); }
+
+.boardwrap{
+  border-radius:18px; padding:16px; border:1px solid var(--line);
+  background: linear-gradient(160deg, rgba(122,178,108,0.08), rgba(18,58,53,0.4));
+  margin-bottom:18px; overflow:auto;
+}
+.grid{ display:grid; gap:2px; justify-content:center; }
+.cell{
+  border-radius:3px; border:1px solid rgba(234,243,238,0.08);
+  background: rgba(234,243,238,0.03); position:relative;
+}
+.cell.clickable{ cursor:pointer; }
+.cell.clickable:hover{ box-shadow: inset 0 0 0 2px var(--egg); }
+.cell.white{ background: var(--c-white); }
+.cell.black{ background: var(--c-black); border-color:#000; }
+.cell.highlight{ box-shadow: inset 0 0 0 3px var(--egg), 0 0 10px rgba(232,196,104,0.9); background: rgba(232,196,104,0.55); animation: pulse-hl 1.1s ease-in-out infinite; }
+@keyframes pulse-hl{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.35); } }
+.cell.selecting{ cursor:pointer; }
+.cell.selecting:hover{ box-shadow: inset 0 0 0 2px var(--lily-light); }
+.cell.true-reveal{ box-shadow: inset 0 0 0 3px var(--danger); }
+
+.controls{
+  background: rgba(234,243,238,0.04); border:1px solid var(--line); border-radius:18px;
+  padding:18px; margin-bottom:18px;
+}
+.controls h3{ font-family: var(--display); margin:0 0 4px; font-size:18px; }
+.controls .hint{ font-size:12px; color:var(--ink-dim); margin-bottom:14px; }
+
+.btnrow{ display:flex; flex-wrap:wrap; gap:8px; }
+.actbtn{
+  background: rgba(234,243,238,0.06); border:1px solid var(--line); color:var(--ink);
+  padding:8px 14px; border-radius:10px; font-size:13px; font-family:var(--body); cursor:pointer;
+}
+.actbtn:hover{ background: rgba(122,178,108,0.18); border-color:var(--lily-light); }
+.actbtn.sel{ background: var(--lily); border-color: var(--lily-light); color:#0b2422; font-weight:700; }
+.actbtn:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.confirm-row{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
+.confirmbtn{
+  background: var(--lily); color:#0b2422; border:none; font-weight:700;
+  padding:10px 22px; border-radius:10px; font-size:14px; cursor:pointer; font-family:var(--body);
+}
+.confirmbtn:disabled{ background: rgba(234,243,238,0.1); color:var(--ink-dim); cursor:not-allowed; }
+
+.log{
+  background: rgba(11,36,34,0.6); border:1px solid var(--line); border-radius:14px;
+  padding:14px 18px; font-size:13px; max-height:220px; overflow-y:auto; color:var(--ink-dim);
+}
+.log h3{ font-family:var(--display); font-size:15px; color:var(--ink); margin:0 0 8px; }
+.log .entry{ margin-bottom:4px; }
+.log .turn-mark{ color:var(--lily-light); font-weight:700; margin-top:8px; display:block; }
+
+.gameover{
+  text-align:center; padding:30px; border-radius:18px;
+  background: linear-gradient(160deg, rgba(122,178,108,0.2), rgba(11,36,34,0.6));
+  border:1px solid var(--lily-light); margin-bottom:18px;
+}
+.gameover .win{ font-family:var(--display); font-size:28px; margin-bottom:10px; }
+.resetbtn{
+  background:transparent; border:1px solid var(--lily-light); color:var(--ink);
+  padding:10px 24px; border-radius:10px; cursor:pointer; font-family:var(--body); font-size:14px;
+}
+.resetbtn:hover{ background: rgba(122,178,108,0.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kanji">観測者の色</p>
+    <div class="sub">狙った場所を悟らせない先攻と、見抜こうとする後攻</div>
+    <div class="ripple"></div>
+  </div>
+
+  <details class="notebox">
+    <summary>このデモでのルール解釈（要確認）</summary>
+    <div>
+      ・盤面はプレイヤー・NPC共有の1枚です（9×9 または 18×18）。開始時、白・黒の色（被りなし）と先攻／後攻がランダムに決まります。<b>先攻／後攻の呼び名は開始時に決まったまま変わりませんが、実際に「選ぶ側」になるかは1ターンごとに交代します</b>（先攻が選ぶ→後攻が選ぶ→先攻が選ぶ…と交互に、最初は先攻から）。<br>
+      ・毎ターン、その回の「選ぶ側」がまず（内部的に）置きたいマスを1つ決めます。すると、①〜⑥のパターン（縦3つ／横3つ／L字4種）のうち今回のパターンと、A〜Cの並び順に応じて、<b>選んだマスを含む3マス</b>がハイライトされます（本当に選んだマスがそのうちどれかは、「推測する側」には分かりません）。<br>
+      ・後攻はハイライトされたマスの中から「先攻が本当に選んだのはここだ」と思うマスを1つ選びます。<b>当たれば後攻の色</b>が、<b>外れれば先攻の色</b>が、先攻が本当に選んでいたマスに置かれます。<br>
+      ・①〜⑥の出現順は開始時にランダムに決まり、以後は固定順で巡回します。ノーマルモードでは各パターンのA〜Cは固定（例：①はいつもA、②はいつもB…）。ハードモードでは、そのパターンが使われるたびにA→B→C→A…と個別に進みます。<br>
+      ・ハイライト候補のマスがすでに色で埋まっている場合、その方向にもう1マス先が空いていればそちらへずらしてハイライトし、そこも埋まっていれば、そのハイライトは表示しません（3マスではなく2マスになることがあります）。<br>
+      ・<b>今回のパターンで、盤面のどの空きマスを選んでもハイライトが1マス（選んだマス自身だけ）にしかならない状態になった時点</b>、または空いているマスが無くなった時点で終了。<b>自分の色を多く置けた方が勝ち</b>です（同点は引き分け）。（特定の1マスがたまたま壁にぶつかってハイライトが少なくなっただけでは終了しません。他に2マス以上出せる空きマスが残っていれば続行します。）<br>
+      ・画面には常に、自分の①〜⑥の出現順と、現在の組み合わせ（例：②-A なら ■□□）を表示します。相手（NPC）の出現順と現在の組み合わせは、専用のボタンを開くと見られますが、<b>開くたびに3点減点</b>されます（閉じてもう一度開くと、その都度また減点されます）。<br>
+      ・<b>デモ上の簡略化</b>：後攻（NPC）の推測に特別な読み合いロジックはなく、ハイライトされた候補からランダムに選びます。先攻（NPC）のマス選択も基本的にランダムです。
+    </div>
+  </details>
+
+  <div id="app"></div>
+
+</div>
+
+<footer style="text-align:center; margin-top:32px; font-size:11px; color:rgba(169,196,187,0.5); letter-spacing:0.08em;">
+  <div style="margin-bottom:10px;">
+    <a href="https://umemotoraku.github.io/ummt-game/index" style="color:var(--lily-light); text-decoration:none; border-bottom:1px solid rgba(122,178,108,0.4); padding-bottom:2px;">TOP</a>
+  </div>
+  著作者　梅本らく　／　コーディング　Claude
+</footer>
+
+<script>
+// pattern offsets: each pattern has 3 role-offsets [r,c]. The variant index says which
+// offset corresponds to the actually-selected cell.
+const PATTERNS = {
+  1: [[0,0],[1,0],[2,0]],   // vertical:  A(top),B(mid),C(bottom)
+  2: [[0,0],[0,1],[0,2]],   // horizontal: A(left),B(mid),C(right)
+  3: [[-1,0],[0,0],[0,1]],  // L1 up+right: A(up-tip),B(pivot),C(right-tip)
+  4: [[-1,0],[0,0],[0,-1]], // L2 up+left
+  5: [[1,0],[0,0],[0,1]],   // L3 down+right
+  6: [[1,0],[0,0],[0,-1]]   // L4 down+left
+};
+const PATTERN_LABEL = { 1:'①縦', 2:'②横', 3:'③L字1', 4:'④L字2', 5:'⑤L字3', 6:'⑥L字4' };
+const VARIANT_LABEL = ['A','B','C'];
+
+// renders a pattern's shape as a small grid of □ (used for the reference legend, no ■ marker)
+function shapeGlyphHTML(patternId){
+  const offsets = PATTERNS[patternId];
+  const minR = Math.min(...offsets.map(o=>o[0]));
+  const minC = Math.min(...offsets.map(o=>o[1]));
+  const maxR = Math.max(...offsets.map(o=>o[0]));
+  const maxC = Math.max(...offsets.map(o=>o[1]));
+  const rows = maxR-minR+1, cols = maxC-minC+1;
+  const grid = [];
+  for(let r=0;r<rows;r++) grid.push(new Array(cols).fill(false));
+  offsets.forEach(o=>{ grid[o[0]-minR][o[1]-minC] = true; });
+  return grid.map(row => row.map(f=> f?'□':'　').join('')).join('<br>');
+}
+
+function renderShapeLegend(){
+  const items = [1,2,3,4,5,6].map(p=>
+    `<div style="text-align:center;">
+      <div style="font-size:11px; color:var(--ink-dim); margin-bottom:4px;">${PATTERN_LABEL[p]}</div>
+      <div style="font-family:monospace; line-height:1.3; letter-spacing:2px; font-size:15px;">${shapeGlyphHTML(p)}</div>
+    </div>`
+  ).join('');
+  return `<div class="controls" style="padding:14px 18px;">
+    <h3 style="font-size:15px;">📐 ①〜⑥のハイライトの並び方（形の参考）</h3>
+    <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:10px;">${items}</div>
+  </div>`;
+}
+
+function otherPlayer(p){ return p===1?2:1; }
+function emptyBoard(n){ const b=[]; for(let r=0;r<n;r++) b.push(new Array(n).fill(null)); return b; }
+function emptiesOf(board,n){ const list=[]; for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(!board[r][c]) list.push([r,c]); return list; }
+function shuffle(arr){ return arr.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+
+// ---- setup state ----
+let setup = { n:null, mode:null };
+let gameStarted = false;
+let game = null;
+
+function pickN(n){ setup.n = n; render(); }
+function pickMode(m){ setup.mode = m; render(); }
+
+function startGame(){
+  if(!setup.n || !setup.mode) return;
+  game = createGame(setup.n, setup.mode);
+  gameStarted = true;
+  render();
+  maybeStartAITurn();
+}
+
+function nameOf(pn){ return pn===1 ? 'あなた' : 'NPC'; }
+
+function orderDisplay(playerNum){
+  const order = game.patternOrders[playerNum];
+  const curPos = game.turnIndices[playerNum] % 6;
+  return order.map((p,i)=> i===curPos ? `<b style="color:var(--egg);">${PATTERN_LABEL[p]}</b>` : PATTERN_LABEL[p]).join(' → ');
+}
+
+function currentComboDisplay(playerNum){
+  const { patternId, variantIdx } = currentPatternAndVariant(playerNum);
+  return `${PATTERN_LABEL[patternId]}-${VARIANT_LABEL[variantIdx]}　<span style="letter-spacing:2px;">${variantGlyph(variantIdx)}</span>`;
+}
+
+function toggleOpponentPeek(){
+  if(!game || game.winner) return;
+  if(!game.opponentPatternRevealed){
+    game.opponentPatternRevealed = true;
+    game.score[1] -= 3;
+    log(`あなたは相手（NPC）の配置パターンを覗き見た。3点減点（現在 あなた${game.score[1]} − NPC${game.score[2]}）。`);
+  } else {
+    game.opponentPatternRevealed = false;
+  }
+  render();
+}
+
+function renderPatternPanels(){
+  let html = renderShapeLegend();
+  html += `<div class="controls" style="padding:14px 18px;">
+    <h3 style="font-size:15px;">🔵 あなたの配置パターン</h3>
+    <div class="hint" style="margin-bottom:6px;">出現順：${orderDisplay(1)}</div>
+    <div class="hint" style="margin:0;">現在の組み合わせ：${currentComboDisplay(1)}</div>
+  </div>`;
+  html += `<div class="controls" style="padding:14px 18px;">
+    <button class="actbtn" onclick="toggleOpponentPeek()">${game.opponentPatternRevealed ? '相手の配置パターンを隠す' : '相手の配置パターンを見る（開くと3点減点）'}</button>
+    <div class="hint" style="margin:6px 0 0;">※ 開くたびに3点減点されます（一度閉じてもう一度開くと、その都度また3点減点されます）。</div>
+    ${game.opponentPatternRevealed ? `
+      <div class="hint" style="margin-top:10px;">出現順：${orderDisplay(2)}</div>
+      <div class="hint" style="margin:0;">現在の組み合わせ：${currentComboDisplay(2)}</div>
+    ` : ''}
+  </div>`;
+  return html;
+}
+
+function createGame(n, mode){
+  const first = Math.random()<0.5 ? 1 : 2;
+  const playerColor = Math.random()<0.5 ? 'white' : 'black';
+  const colors = { 1: playerColor, 2: playerColor==='white'?'black':'white' };
+  const g = {
+    n, mode,
+    board: emptyBoard(n),
+    colors,
+    firstPlayer: first,
+    currentSelector: first, // alternates each round: starts with 先攻, then swaps every turn
+    phase: 'select', // select -> guess -> (aithinking) -> gameover
+    patternOrders: { 1: shuffle([1,2,3,4,5,6]), 2: shuffle([1,2,3,4,5,6]) }, // each player has their own fixed order
+    turnIndices: { 1:0, 2:0 }, // each player's own count of turns spent as selector
+    patternUseCounts: { 1:{1:0,2:0,3:0,4:0,5:0,6:0}, 2:{1:0,2:0,3:0,4:0,5:0,6:0} },
+    trueCell: null,
+    highlights: [], // array of {r,c}
+    score: {1:0, 2:0},
+    opponentPatternRevealed: false,
+    lastAIMove: null,
+    winner: null,
+    log: []
+  };
+  g.log.push({ text:`盤面${n}×${n}、${mode==='hard'?'ハード':'ノーマル'}モードでゲーム開始。あなたは${playerColor==='white'?'白':'黒'}、NPCは${colors[2]==='white'?'白':'黒'}。${first===1?'あなた':'NPC'}が先攻、${first===1?'NPC':'あなた'}が後攻です。選ぶ側／推測する側は1ターンごとに交代します。各プレイヤーは、自分が選ぶ側になったときに使う①〜⑥の出現順を、それぞれ独自に持っています。`, turnMark:true });
+  return g;
+}
+
+function log(text, turnMark){ game.log.push({ text, turnMark: !!turnMark }); }
+
+// glyph like "■□□" showing which of the 3 role-positions the selected cell occupies
+function variantGlyph(variantIdx){
+  return [0,1,2].map(i=> i===variantIdx ? '■' : '□').join('');
+}
+
+function currentPatternAndVariant(forPlayer){
+  const order = game.patternOrders[forPlayer];
+  const idx = game.turnIndices[forPlayer];
+  const pos = idx % 6;
+  const patternId = order[pos];
+  let variantIdx;
+  if(game.mode==='hard'){
+    variantIdx = (pos + game.patternUseCounts[forPlayer][patternId]) % 3;
+  } else {
+    variantIdx = pos % 3;
+  }
+  return { patternId, variantIdx };
+}
+
+// computes the (2-3) highlighted cells for a given true selection, applying the
+// "skip past one occupied cell, otherwise drop the highlight" wall-handling rule
+function computeHighlights(sr, sc, patternId, variantIdx){
+  const n = game.n, board = game.board;
+  const offsets = PATTERNS[patternId];
+  const selOffset = offsets[variantIdx];
+  const results = [];
+  const seen = new Set();
+  const add = (r,c) => {
+    const key = r+','+c;
+    if(seen.has(key)) return; // avoid double-highlighting the same cell (e.g. a skip landing on another role's cell)
+    seen.add(key);
+    results.push({r,c});
+  };
+  for(let i=0;i<3;i++){
+    const dr = offsets[i][0]-selOffset[0], dc = offsets[i][1]-selOffset[1];
+    let r = sr+dr, c = sc+dc;
+    if(i===variantIdx){ add(r,c); continue; } // this is the true selected cell itself
+    const inBounds = (r>=0&&r<n&&c>=0&&c<n);
+    if(inBounds && !board[r][c]){ add(r,c); continue; }
+    // occupied or off-board: try skipping one further step in the same direction
+    const r2 = r+dr, c2 = c+dc;
+    const skipInBounds = (r2>=0&&r2<n&&c2>=0&&c2<n);
+    if(skipInBounds && !board[r2][c2]){ add(r2,c2); }
+    // else: drop this highlight entirely (fewer than 3 shown)
+  }
+  return results;
+}
+
+function declareWinnerByScore(reasonText){
+  if(game.score[1]===game.score[2]){
+    game.winner = 'draw';
+    log(`🤝 ${reasonText}得点も同点で引き分けです（あなた${game.score[1]} − ${game.score[2]}NPC）。`, true);
+  } else {
+    game.winner = game.score[1]>game.score[2] ? 1 : 2;
+    log(`🏆 ${reasonText}${nameOf(game.winner)}の勝利！（あなた${game.score[1]} − ${game.score[2]}NPC）`, true);
+  }
+  game.phase = 'gameover';
+}
+
+function checkGameOver(){
+  if(emptiesOf(game.board, game.n).length===0){
+    declareWinnerByScore('盤面が埋まりました。');
+    return true;
+  }
+  return false;
+}
+
+function boardHasViableSelection(patternId, variantIdx){
+  const n = game.n;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      if(game.board[r][c]) continue;
+      const hl = computeHighlights(r, c, patternId, variantIdx);
+      if(hl.length>=2) return true;
+    }
+  }
+  return false;
+}
+
+function beginSelectPhase(){
+  const { patternId, variantIdx } = currentPatternAndVariant(game.currentSelector);
+  if(!boardHasViableSelection(patternId, variantIdx)){
+    declareWinnerByScore('今回のパターンでは、どこを選んでもハイライトが1マスしか出せなくなりました。');
+    render();
+    return;
+  }
+  game.phase = 'select';
+  game.trueCell = null;
+  game.highlights = [];
+  render();
+  maybeStartAITurn();
+}
+
+function maybeStartAITurn(){
+  if(!game || game.winner) return;
+  const acting = game.phase==='select' ? game.currentSelector : otherPlayer(game.currentSelector);
+  if(acting===2){
+    game.phase = game.phase==='select' ? 'aithinking-select' : 'aithinking-guess';
+    render();
+    setTimeout(npcAct, 700);
+  }
+}
+
+// ---- selecting player's turn (alternates each round) ----
+function chooseCell(r,c){
+  if(game.phase!=='select') return;
+  if(game.currentSelector!==1) return;
+  if(game.board[r][c]) return;
+  resolveSelection(r,c);
+}
+
+function resolveSelection(sr, sc){
+  const { patternId, variantIdx } = currentPatternAndVariant(game.currentSelector);
+  let hl = computeHighlights(sr, sc, patternId, variantIdx);
+  let addedDiagonal = false;
+  if(hl.length<2){
+    // this particular selection happened to hit walls on both other pattern cells —
+    // add one decoy from a diagonal empty neighbor so there's still something to guess between
+    const n = game.n;
+    const diagOffsets = shuffle([[-1,-1],[-1,1],[1,-1],[1,1]]);
+    for(const [dr,dc] of diagOffsets){
+      const r = sr+dr, c = sc+dc;
+      if(r>=0&&r<n&&c>=0&&c<n && !game.board[r][c] && !hl.some(h=>h.r===r&&h.c===c)){
+        hl = [...hl, {r,c}];
+        addedDiagonal = true;
+        break;
+      }
+    }
+  }
+  game.trueCell = { r:sr, c:sc };
+  game.highlights = shuffle(hl);
+  log(`${nameOf(game.currentSelector)}（今回の選択側）がマスを選んだ。パターン：${PATTERN_LABEL[patternId]}-${VARIANT_LABEL[variantIdx]}。ハイライト${game.highlights.length}マスを表示。${addedDiagonal?'（壁に阻まれたため対角のマスを1つ追加した）':''}`);
+  game.phase = 'guess';
+  render();
+  maybeStartAITurn();
+}
+
+// ---- guessing player's turn (the other player, alternates each round) ----
+function guessCell(r,c){
+  if(game.phase!=='guess') return;
+  const guesser = otherPlayer(game.currentSelector);
+  if(guesser!==1) return;
+  if(!game.highlights.some(h=>h.r===r&&h.c===c)) return;
+  finishGuess(r,c);
+}
+
+function finishGuess(gr, gc){
+  const selector = game.currentSelector;
+  const guesser = otherPlayer(selector);
+  const correct = (gr===game.trueCell.r && gc===game.trueCell.c);
+  const winnerColorPlayer = correct ? guesser : selector;
+  game.board[game.trueCell.r][game.trueCell.c] = game.colors[winnerColorPlayer];
+  game.score[winnerColorPlayer]++;
+  if(correct){
+    log(`${nameOf(guesser)}（推測側）が見抜いた！(${game.trueCell.r+1},${game.trueCell.c+1}) に推測側の色（${game.colors[guesser]==='white'?'白':'黒'}）が乗った。`);
+  } else {
+    log(`${nameOf(guesser)}（推測側）は外した。(${game.trueCell.r+1},${game.trueCell.c+1}) に選択側の色（${game.colors[selector]==='white'?'白':'黒'}）が乗った。`);
+  }
+
+  const { patternId } = currentPatternAndVariant(selector);
+  game.patternUseCounts[selector][patternId]++;
+  game.turnIndices[selector]++;
+  game.currentSelector = otherPlayer(game.currentSelector); // the selecting role swaps to the other player next turn
+
+  if(checkGameOver()){ render(); return; }
+  beginSelectPhase();
+}
+
+// ---- NPC ----
+function npcAct(){
+  if(game.phase==='aithinking-select'){
+    const empties = emptiesOf(game.board, game.n);
+    const [r,c] = empties[Math.floor(Math.random()*empties.length)];
+    game.lastAIMove = { reason: `(${r+1},${c+1}) を狙うことにした（特別な戦略はなくランダムに選んでいる）。` };
+    resolveSelection(r,c);
+  } else if(game.phase==='aithinking-guess'){
+    const pick = game.highlights[Math.floor(Math.random()*game.highlights.length)];
+    game.lastAIMove = { reason: `ハイライトされた${game.highlights.length}マスの中から (${pick.r+1},${pick.c+1}) を選んだ（特別な読み合いはなくランダムに選んでいる）。` };
+    finishGuess(pick.r, pick.c);
+  }
+}
+
+function resetGame(){
+  game=null; gameStarted=false; setup={n:null, mode:null};
+  render();
+}
+
+// ---- rendering ----
+function cellSizePx(n){ return Math.max(14, Math.min(34, Math.floor(560/n))); }
+
+function renderBoard(){
+  const n = game.n, board = game.board, px = cellSizePx(n);
+  const inGuessPhase = (game.phase==='guess' || game.phase==='aithinking-guess');
+  const humanIsGuesser = inGuessPhase && (game.phase==='guess') && otherPlayer(game.currentSelector)===1;
+  const highlightSet = new Set(game.highlights.map(h=>h.r+','+h.c));
+  let html = `<div class="grid" style="grid-template-columns:repeat(${n}, ${px}px);">`;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const cell = board[r][c];
+      const cls = cell ? cell : '';
+      const isHl = inGuessPhase && highlightSet.has(r+','+c);
+      const clickable = humanIsGuesser && isHl;
+      html += `<div class="cell ${cls} ${isHl?'highlight':''} ${clickable?'clickable':''}" style="width:${px}px;height:${px}px;" ${clickable?`onclick="guessCell(${r},${c})"`:''}></div>`;
+    }
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderControls(){
+  if(game.phase==='aithinking-select'){
+    return `<div class="controls"><h3>🟢 NPC の手番（選択中）</h3><div class="hint">NPCが考え中...</div></div>`;
+  }
+  if(game.phase==='aithinking-guess'){
+    return `<div class="controls"><h3>🟢 NPC の手番（推測中）</h3><div class="hint">NPCが考え中...</div></div>`;
+  }
+  if(game.phase==='gameover') return '';
+  const { patternId, variantIdx } = currentPatternAndVariant(game.currentSelector);
+  if(game.phase==='select'){
+    if(game.currentSelector!==1){
+      return `<div class="controls"><h3>🟢 NPC の手番（選択）</h3><div class="hint">NPCの選択を待っています…</div></div>`;
+    }
+    return `<div class="controls">
+      <h3>🔵 あなたの手番：マスを選択</h3>
+      <div class="hint">盤面の空いているマスから、置きたい場所を1つクリックしてください（今回のパターン：${PATTERN_LABEL[patternId]}-${VARIANT_LABEL[variantIdx]}）。</div>
+    </div>`;
+  }
+  if(game.phase==='guess'){
+    const guesser = otherPlayer(game.currentSelector);
+    if(guesser!==1){
+      return `<div class="controls"><h3>🟢 NPC の手番（推測）</h3><div class="hint">NPCの推測を待っています…</div></div>`;
+    }
+    return `<div class="controls">
+      <h3>🔵 あなたの手番：ハイライトから推測</h3>
+      <div class="hint">相手が本当に選んだと思うマスを、金色にハイライトされたマス（${game.highlights.length}箇所）の中から1つクリックしてください。</div>
+    </div>`;
+  }
+  return '';
+}
+
+function renderSetupScreen(){
+  const app = document.getElementById('app');
+  let html = `<div class="controls">
+    <h3>🌗 ゲーム開始準備</h3>
+    <div class="hint">盤面のサイズを選んでください。</div>
+    <div class="btnrow">
+      <button class="actbtn ${setup.n===9?'sel':''}" onclick="pickN(9)">9×9</button>
+      <button class="actbtn ${setup.n===18?'sel':''}" onclick="pickN(18)">18×18</button>
+    </div>
+    <div class="hint" style="margin-top:14px;">モードを選んでください。</div>
+    <div class="btnrow">
+      <button class="actbtn ${setup.mode==='normal'?'sel':''}" onclick="pickMode('normal')">ノーマル</button>
+      <button class="actbtn ${setup.mode==='hard'?'sel':''}" onclick="pickMode('hard')">ハード</button>
+    </div>
+    <div class="confirm-row">
+      <button class="confirmbtn" ${(setup.n&&setup.mode)?'':'disabled'} onclick="startGame()">ゲームスタート</button>
+    </div>
+  </div>`;
+  app.innerHTML = html;
+}
+
+function render(){
+  if(!gameStarted || !game){ renderSetupScreen(); return; }
+  const app = document.getElementById('app');
+  let html = '';
+
+  if(game.phase==='gameover'){
+    html += `<div class="gameover">
+      <div class="win">${game.winner==='draw' ? '🤝 引き分け' : '🏆 ' + nameOf(game.winner) + ' の勝利！'}</div>
+      <div style="font-size:13px; color:var(--ink-dim); margin-bottom:14px;">最終得点　あなた ${game.score[1]} − ${game.score[2]} NPC</div>
+      <button class="resetbtn" onclick="resetGame()">もう一度遊ぶ</button>
+    </div>`;
+  }
+
+  const yourTurnToSelect = game.currentSelector===1;
+  const roleNow = yourTurnToSelect ? '今回はあなたが選択する番です' : '今回はあなたが推測する番です';
+  html += `<div class="scoreline">得点　<b>あなた ${game.score[1]}（${game.colors[1]==='white'?'白':'黒'}） − ${game.score[2]}（${game.colors[2]==='white'?'白':'黒'}）NPC</b>　／　先攻：${nameOf(game.firstPlayer)}<br><span style="color:var(--egg);">${roleNow}（選ぶ側／推測する側は1ターンごとに入れ替わります）</span></div>`;
+  html += renderPatternPanels();
+
+  const boardOverride = (game.phase==='select' && game.currentSelector===1);
+  html += `<div class="boardwrap">`;
+  if(boardOverride){
+    // render with clickable empty cells for selection
+    const n = game.n, px = cellSizePx(n);
+    html += `<div class="grid" style="grid-template-columns:repeat(${n}, ${px}px);">`;
+    for(let r=0;r<n;r++){
+      for(let c=0;c<n;c++){
+        const cell = game.board[r][c];
+        const cls = cell ? cell : '';
+        const clickable = !cell;
+        html += `<div class="cell ${cls} ${clickable?'selecting':''}" style="width:${px}px;height:${px}px;" ${clickable?`onclick="chooseCell(${r},${c})"`:''}></div>`;
+      }
+    }
+    html += `</div>`;
+  } else {
+    html += renderBoard();
+  }
+  html += `</div>`;
+
+  if(game.lastAIMove){
+    html += `<details class="ainote">
+      <summary>🧠 NPCの判断を見る（カンニング）</summary>
+      <div class="ainote-body">${game.lastAIMove.reason}</div>
+    </details>`;
+  }
+
+  if(game.phase!=='gameover'){ html += renderControls(); }
+
+  html += `<div class="log"><h3>ログ</h3>${game.log.length? game.log.map(l=> l.turnMark? `<span class="turn-mark">${l.text}</span>` : `<div class="entry">${l.text}</div>`).join('') : '<div class="entry">まだ何も起きていません。</div>'}</div>`;
+
+  app.innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
